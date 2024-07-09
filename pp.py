@@ -11,7 +11,7 @@ TODO:
         - [X] dll
         - [X] path
     - [X] default values
-    - [ ] class for the json?
+    - [X] class for the json?
     - [ ] project (at least one)
         - [ ] name
         - [ ] path
@@ -28,7 +28,6 @@ class PPError(Exception):
 
 
 class Config(ABC):
-
 
     def print(self, level: int = 0) -> None:
         for key, value in vars(self).items():
@@ -49,7 +48,6 @@ class Config(ABC):
         for key, value in vars(self).items():
             if key in config:
                 setattr(self, key, config[key])
-
 
 
 class Device:
@@ -77,14 +75,8 @@ class TIA(Config):
 
     def process(self, config: dict) -> None:
         super().process(config)
-
-        if isinstance(self.project, dict):
-            conf = self.project.copy()
-            self.project = Project()
-            self.project.process(conf)
-        else:
-            self.project = None
-
+        self.project = Project()
+        self.project.process(config['project'])
 
 
 class PortalParser:
