@@ -12,9 +12,9 @@ TODO:
         - [X] path
     - [X] default values
     - [X] class for the json?
-    - [ ] project (at least one)
-        - [ ] name
-        - [ ] path
+    - [x] project (at least one)
+        - [x] name
+        - [x] path
         - [ ] devices (at least one)
             - [ ] name
             - [ ] article number
@@ -29,6 +29,19 @@ class PPError(Exception):
 
 class Config(ABC):
 
+    def __init__(self, **config: dict) -> None:
+        """
+        Set the config values based on the JSON config file.
+        This will call the function in each classes.
+
+        :param config: Dictionary values of the JSON configuration
+        """
+
+        for key, value in config.items():
+            func = f"fn_{key}"
+            if hasattr(self, func):
+                getattr(self, func)(value)
+
     def print(self, level: int = 0) -> None:
         for key, value in vars(self).items():
             if isinstance(value, Config):
@@ -38,58 +51,78 @@ class Config(ABC):
                 print(f"{'\t'*level}{key} = {value}")
 
 
-    def process(self, config: dict) -> None:
-        """
-        Set the config values based on the JSON config file
-
-        :param config: Dictionary values of the JSON configuration
-        """
-
-        for key, value in vars(self).items():
-            if key in config:
-                setattr(self, key, config[key])
 
 
 
 class Device(Config):
 
-    def __init__(self) -> None:
-        self.name: str = ""
+    def __init__(self, **config: dict) -> None:
+        self.device_name: str = ""
         self.article_number: str = ""
         self.version: str = ""
 
-    # def process(self, config: dict) -> None:
-    #     super().process(config)
-    #     print(self.name, self.article_number, self.version)
+        super().__init__(**config)
+
+    def fn_device_name(self, value):
+        self.device_name = value
+
+    def fn_article_number(self, value):
+        self.article_number = value
+
+    def fn_version(self, value):
+        self.version = value
+
 
 class Project(Config):
 
-    def __init__(self) -> None:
-        self.name: str = ""
-        self.directory: Path = Path.home()
-        self.devices: list[Device] = []
+    def __init__(self, **config: dict) -> None:
+        self.name: str              = "AutomationProject420"
+        self.directory: Path        = Path.home()
+        self.devices: list[Device]  = []
 
-    def process(self, config: dict) -> None:
-        super().process(config)
-        self.directory = Path(self.directory)
+        super().__init__(**config)
+
+    def fn_name(self, value) -> None:
+        self.name = value
+
+    def fn_directory(self, value) -> None:
+        self.directory = value
+
+    def fn_devices(self, devices) -> None:
+        for _, value in devices.items():
+            device = Device(**value)
+            self.devices.append(device)
 
 
 
 
 class TIA(Config):
 
-    def __init__(self) -> None:
-        self.version: int = 18
-        self.filename: str = "Siemens.Engineering.dll"
-        self.dll: Path = Path(rf"C:/Program Files/Siemens/Automation/Portal V{self.version}/PublicAPI/V{self.version}/{self.filename}")
-        self.project: Project | None = None
+    def __init__(self, **config: dict) -> None:
+        self.version: int               = 18
+        self.filename: str              = "Siemens.Engineering.dll"
+        self.dll: Path                  = Path(rf"C:/Program Files/Siemens/Automation/Portal V{self.version}/PublicAPI/V{self.version}/{self.filename}")
+        self.project: Project | None    = None
+        
+        super().__init__(**config)
 
-    def process(self, config: dict) -> None:
-        super().process(config)
-        if self.project:
-            conf = self.project.copy()
-            self.project = Project()
-            self.project.process(conf)
+    def fn_version(self, value) -> None:
+        if not value.isnumeric():
+            raise PPError("Not a valid integer.")
+
+        self.version = int(value)
+
+    def fn_filename(self, value) -> None:
+        self.filename = value
+
+    def fn_dll(self, value) -> None:
+        self.dll = Path(value)
+
+    def fn_project(self, value) -> None:
+        if not isinstance(value, dict):
+            raise PPError("Invalid Project")
+
+        self.project = Project(**value)
 
 
 class PortalParser:
@@ -124,8 +157,8 @@ class PortalParser:
         with open(self.config_file_path, 'r') as file:
             conf = json.load(file)
 
-        self.config = TIA()
-        self.config.process(conf)
+        self.config = TIA(**conf)
+        # self.config.process(conf)
         self.config.print()
 
 
