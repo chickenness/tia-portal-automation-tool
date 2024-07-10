@@ -50,19 +50,30 @@ class Config(ABC):
                 setattr(self, key, config[key])
 
 
-class Device:
+
+class Device(Config):
 
     def __init__(self) -> None:
         self.name: str = ""
         self.article_number: str = ""
         self.version: str = ""
 
+    # def process(self, config: dict) -> None:
+    #     super().process(config)
+    #     print(self.name, self.article_number, self.version)
+
 class Project(Config):
 
     def __init__(self) -> None:
         self.name: str = ""
-        self.directory: Path | None = None
-        self.devices: list = []
+        self.directory: Path = Path.home()
+        self.devices: list[Device] = []
+
+    def process(self, config: dict) -> None:
+        super().process(config)
+        self.directory = Path(self.directory)
+
+
 
 
 class TIA(Config):
@@ -75,8 +86,10 @@ class TIA(Config):
 
     def process(self, config: dict) -> None:
         super().process(config)
-        self.project = Project()
-        self.project.process(config['project'])
+        if self.project:
+            conf = self.project.copy()
+            self.project = Project()
+            self.project.process(conf)
 
 
 class PortalParser:
