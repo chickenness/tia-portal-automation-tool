@@ -16,9 +16,9 @@ TODO:
         - [x] name
         - [x] path
         - [ ] devices (at least one)
-            - [ ] name
-            - [ ] article number
-            - [ ] version
+            - [x] name
+            - [x] article number
+            - [x] version
     - [ ] Error Handling
     - [ ] Logging?
 """
@@ -42,6 +42,15 @@ class Config(ABC):
             if hasattr(self, func):
                 getattr(self, func)(value)
 
+    def __repr__(self) -> str:
+        text = ""
+        for key, value in vars(self).items():
+            text += '\n'
+            text += f"{key} = {value}"
+
+        return text
+
+
     def print(self, level: int = 0) -> None:
         for key, value in vars(self).items():
             if isinstance(value, Config):
@@ -57,9 +66,9 @@ class Config(ABC):
 class Device(Config):
 
     def __init__(self, **config: dict) -> None:
-        self.device_name: str = ""
-        self.article_number: str = ""
-        self.version: str = ""
+        self.device_name: str       = "PLCDev_1"
+        self.article_number: str    = "OrderNumber:6ES7 513-1AL02-0AB0"
+        self.version: str           = "2.6"
 
         super().__init__(**config)
 
@@ -86,7 +95,7 @@ class Project(Config):
         self.name = value
 
     def fn_directory(self, value) -> None:
-        self.directory = value
+        self.directory = Path(value)
 
     def fn_devices(self, devices) -> None:
         for _, value in devices.items():
@@ -133,17 +142,12 @@ class PortalParser:
     def __init__(self, config_file_path: Path) -> None:
         """
         Initialize TIA Portal config parser with the path to the configuration file
+        Loads and process the JSON configuration file into python classes.
 
         :param config_file_path: Path to the JSON configuration file
         """
         
         self.config_file_path: Path = config_file_path
-        self.config: Config | None = None
-    
-    def load(self) -> None:
-        """
-        Loads and process the JSON configuration file into python classes.
-        """
 
         if not isinstance(self.config_file_path, Path):
             raise PPError(f"JSON config file is not a valid path.")
@@ -157,9 +161,6 @@ class PortalParser:
         with open(self.config_file_path, 'r') as file:
             conf = json.load(file)
 
-        self.config = TIA(**conf)
-        # self.config.process(conf)
-        self.config.print()
-
+        self.config: Config = TIA(**conf)
 
 
