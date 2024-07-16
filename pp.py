@@ -22,6 +22,10 @@ def parse(path: str) -> objects.Config:
         raise PPError(f"JSON config is not a file: {config_file_path}")
 
     with open(config_file_path, 'r') as file:
-        conf = json.load(file)
+        conf: dict = json.load(file)
 
-    return objects.TIA(**conf)
+    parsed = objects.start(**conf)
+
+    print(parsed)
+
+    return parsed
