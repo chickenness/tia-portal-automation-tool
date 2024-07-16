@@ -8,12 +8,15 @@ class Config:
     pass
 
 
-
 @dataclass
 class Device(Config):
     device_name: str        = "PLCDev_1"
     article_number: str     = "OrderNumber:6ES7 513-1AL02-0AB0"
     version: str            = "2.6"
+    device: str             = field(init=False)
+
+    def __post_init__(self):
+        self.device = f"{self.article_number}/V{self.version}"
 
 @dataclass
 class Project(Config):
@@ -33,23 +36,49 @@ class TIA(Config):
 
 
 
-def parse_project(conf: Project) -> Project | ValueError:
-    keys = vars(conf).keys()
+def parse_device(**config: dict[str, Any]) -> Device | ValueError:
+    conf = Device()
+    keys = config.keys()
+
+    if 'device_name' in keys:
+        value = interpret_string(config['device_name'])
+        if isinstance(value, ValueError):
+            return value
+        conf.device_name = value
+    if 'article_number' in keys:
+        value = interpret_string(config['article_number'])
+        if isinstance(value, ValueError):
+            return value
+        conf.device_name = value
+    if 'version' in keys:
+        value = interpret_string(config['version'])
+        if isinstance(value, ValueError):
+            return value
+        conf.version = value
+
+    return conf
+
+def parse_project(**config: dict[str, Any]) -> Project | ValueError:
+    conf = Project()
+    keys = config.keys()
 
     if 'name' in keys:
-        value = interpret_string(conf.name)
+        value = interpret_string(config['name'])
         if isinstance(value, ValueError):
             return value
         conf.name = value
     if 'directory' in keys:
-        value = interpret_path(conf.directory)
+        value = interpret_path(config['directory'])
         if isinstance(value, ValueError):
             return value
         conf.directory = value
     if 'devices' in keys:
-        for _, value in conf.devices.items():
-            print(_, value)
-    print(conf)
+        conf.devices = []
+        for _, dev in config['devices'].items():
+            value = interpret_device(dev)
+            if isinstance(value, ValueError):
+                return value
+            conf.devices.append(value)
 
 
     return conf
@@ -57,7 +86,7 @@ def parse_project(conf: Project) -> Project | ValueError:
 
 def parse_tia(**config: dict[str, Any]) -> TIA | ValueError:
     conf = TIA()
-    keys = config.items()
+    keys = config.keys()
 
     if 'version' in keys:
         value = interpret_number(config['version'])
@@ -75,7 +104,7 @@ def parse_tia(**config: dict[str, Any]) -> TIA | ValueError:
             return value
         conf.dll = value
     if 'project' in keys:
-        value = interpret_config(config['project'])
+        value = interpret_project(config['project'])
         if isinstance(value, ValueError):
             return value
         conf.project = value
@@ -104,12 +133,17 @@ def interpret_path(value: Any) -> Path | ValueError:
 
     return Path(value)
 
-def interpret_config(value: Any) -> Config | ValueError:
+def interpret_project(value: Any) -> Project | ValueError:
     if not isinstance(value, dict):
-        return ValueError(f"Invalid configuration: {value}")
+        return ValueError(f"Invalid project: {value}")
     
-    return Project(**value)
+    return parse_project(**value)
 
+def interpret_device(value: Any) -> Device | ValueError:
+    if not isinstance(value, dict):
+        return ValueError(f"Invalid device: {value}")
+    
+    return parse_device(**value)
 
 
 def start(**config: dict) -> Config | ValueError:

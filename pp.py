@@ -26,6 +26,6 @@ def parse(path: str) -> objects.Config:
 
     parsed = objects.start(**conf)
 
-    print(parsed)
+    print(parsed, type(parsed))
 
     return parsed
