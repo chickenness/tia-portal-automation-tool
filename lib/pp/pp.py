@@ -1,8 +1,20 @@
+from __future__ import annotations
+
 from .modules import objects
 from pathlib import Path
 import json
 import os
 
+class PPError:
+    def __init__(self, err: str) -> None:
+        self.err: str = err
+
+class ProjectExistsError(PPError):
+    def __init__(err: str) -> None:
+        super().__init__(self, err)
+
+    def __repr__(self) -> str:
+        return f"ProjectExistsError: {self.err}"
 
 class Portal:
     def __init__(self, config: objects.Config) -> None:
@@ -25,20 +37,27 @@ class Portal:
     def run(self) -> None:
         # probs make this part run multithreaded since it hangs the gui process
         conf = self.config
-        if conf.enable_ui:
-            print("Starting TIA with UI")
-            TIA = self.tia.TiaPortal(self.tia.TiaPortalMode.WithUserInterface)
-        else:
-            print("Starting TIA without UI")
-            TIA = self.tia.TiaPortal(self.tia.TiaPortalMode.WithoutUserInterface)
+        # if conf.enable_ui:
+        #     print("Starting TIA with UI")
+        #     TIA = self.tia.TiaPortal(self.tia.TiaPortalMode.WithUserInterface)
+        # else:
+        #     print("Starting TIA without UI")
+        #     TIA = self.tia.TiaPortal(self.tia.TiaPortalMode.WithoutUserInterface)
 
-        project_path = conf.project.directory.as_posix()
-        project_name = conf.project.name
-
-        PROJECT = TIA.Projects.Create(self.DirectoryInfo(project_path), project_name)
+        self.create_project(conf.project.name, conf.project.directory)
 
 
-        PLC1 = PROJECT.Devices.CreateWithItem(conf.project.devices[0].device, conf.project.devices[0].device_name, 'PLC1')
+        # PLC1 = PROJECT.Devices.CreateWithItem(conf.project.devices[0].device, conf.project.devices[0].device_name, 'PLC1')
+
+    def create_project(self, name: str, path: Path) -> Siemens.Engineering.Project | PPError:
+        path = self.DirectoryInfo(path.as_posix())
+        if not path.Exists:
+            return PPError("Failed creating project. Project already exists.")
+
+        project = TIA.Projects.Create(path, name)
+
+        return project
+
 
 
 def parse(path: str) -> Portal | ValueError:
