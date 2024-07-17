@@ -29,6 +29,7 @@ class TIA(Config):
     version: int            = 18
     filename: str           = "Siemens.Engineering.dll"
     dll: Path               = field(init=False)
+    enable_ui: bool         = True
     project: Config         = field(default_factory=Project)
 
     def __post_init__(self):
@@ -109,8 +110,20 @@ def parse_tia(**config: dict[str, Any]) -> TIA | ValueError:
             return value
         conf.project = value
 
+    if 'enable_ui' in keys:
+        value = interpret_bool(config['enable_ui'])
+        if isinstance(value, ValueError):
+            return value
+        conf.enable_ui = value
 
     return conf
+
+
+def interpret_bool(value: Any) -> bool | ValueError:
+    if not isinstance(value, bool):
+        return ValueError(f"Not a boolean logic: {value}")
+    
+    return value
     
 def interpret_number(value: Any) -> int | ValueError:
         if isinstance(value, int):
