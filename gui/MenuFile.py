@@ -10,7 +10,7 @@ class S:
     DESC_EXIT       = "Terminate this tool. (Does not close TIA Portal)"
 
 
-def new(frame: wx.Frame) -> wx._core.Menu:
+def new(parent: wx.Window) -> wx._core.Menu:
     menu: wx._core.Menu = wx.Menu()
 
     _open: wx._core.MenuItem   = menu.Append(wx.ID_OPEN, S.NAME_OPEN, S.DESC_OPEN)
@@ -18,8 +18,8 @@ def new(frame: wx.Frame) -> wx._core.Menu:
     menu.AppendSeparator()
     _exit: wx._core.MenuItem   = menu.Append(wx.ID_EXIT, S.NAME_EXIT, S.DESC_EXIT)
 
-    frame.Bind(wx.EVT_MENU, frame.OnOpen, _open)
-    frame.Bind(wx.EVT_MENU, frame.OnExit, _exit)
-    frame.Bind(wx.EVT_MENU, frame.OnClose, _close)
+    parent.Bind(wx.EVT_MENU, parent.OnOpen, _open)
+    parent.Bind(wx.EVT_MENU, parent.OnExit, _exit)
+    parent.Bind(wx.EVT_MENU, parent.OnClose, _close)
     
     return menu

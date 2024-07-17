@@ -1,5 +1,5 @@
 from lib.pp import pp
-from gui import MenuBar, FileDialog
+from gui import MenuBar, FileDialog, Notebook
 
 from pathlib import Path
 import wx
@@ -7,13 +7,15 @@ import wx
 
 class MainWindow(wx.Frame):
     def __init__(self, parent, title) -> None:
-        wx.Frame.__init__(self, parent, title=title, size=(600,480))
+        wx.Frame.__init__(self, parent, title=title, size=(800,600))
         self.portal: pp.Portal = None
 
-        self.control = wx.TextCtrl(self, style=wx.TE_MULTILINE)
         self.CreateStatusBar()
 
         menubar = MenuBar.new(self)
+        notebook = Notebook.new(self)
+
+        self.SetMinSize((600,480))
 
         self.Show(True)
 
@@ -43,9 +45,9 @@ class MainWindow(wx.Frame):
         self.Close(True)
 
 
-
-app = wx.App(False)
-frame = MainWindow(None, "TIA Portal Automation Tool")
-app.MainLoop()
+if __name__ == '__main__':
+    app = wx.App(False)
+    frame = MainWindow(None, title="TIA Portal Automation Tool")
+    app.MainLoop()
 
 
