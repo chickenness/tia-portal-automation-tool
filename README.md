@@ -6,7 +6,7 @@
 
 ## TODO
 
-- [ ] Raise Exceptions instead of passing error values
+- [X] Raise Exceptions instead of passing error values
 - [ ] Add more keys
   - [ ] PLC Tags
   - [ ] Network addresses

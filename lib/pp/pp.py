@@ -37,22 +37,22 @@ class Portal:
     def run(self) -> None:
         # probs make this part run multithreaded since it hangs the gui process
         conf = self.config
-        # if conf.enable_ui:
-        #     print("Starting TIA with UI")
-        #     TIA = self.tia.TiaPortal(self.tia.TiaPortalMode.WithUserInterface)
-        # else:
-        #     print("Starting TIA without UI")
-        #     TIA = self.tia.TiaPortal(self.tia.TiaPortalMode.WithoutUserInterface)
+        if conf.enable_ui:
+            print("Starting TIA with UI")
+            TIA = self.tia.TiaPortal(self.tia.TiaPortalMode.WithUserInterface)
+        else:
+            print("Starting TIA without UI")
+            TIA = self.tia.TiaPortal(self.tia.TiaPortalMode.WithoutUserInterface)
 
         self.create_project(conf.project.name, conf.project.directory)
 
 
         # PLC1 = PROJECT.Devices.CreateWithItem(conf.project.devices[0].device, conf.project.devices[0].device_name, 'PLC1')
 
-    def create_project(self, name: str, path: Path) -> Siemens.Engineering.Project | PPError:
+    def create_project(self, name: str, path: Path) -> Siemens.Engineering.Project:
         path = self.DirectoryInfo(path.as_posix())
         if not path.Exists:
-            return PPError("Failed creating project. Project already exists.")
+            raise PPError("Failed creating project. Project already exists.")
 
         project = TIA.Projects.Create(path, name)
 
@@ -60,7 +60,7 @@ class Portal:
 
 
 
-def parse(path: str) -> Portal | ValueError:
+def parse(path: str) -> Portal:
     """
     Initialize TIA Portal config parser with the path to the configuration file
     Loads and process the JSON configuration file into python classes.
@@ -71,18 +71,15 @@ def parse(path: str) -> Portal | ValueError:
     config_file_path: Path = Path(path)
     
     if not config_file_path.exists():
-        return ValueError(f"JSON config file does not exist: {config_file_path}")
+        raise ValueError(f"JSON config file does not exist: {config_file_path}")
 
     if not config_file_path.is_file():
-        return ValueError(f"JSON config is not a file: {config_file_path}")
+        raise ValueError(f"JSON config is not a file: {config_file_path}")
 
     with open(config_file_path, 'r') as file:
         conf: dict = json.load(file)
 
     config: objects.Config = objects.start(**conf)
-
-    if isinstance(config, ValueError):
-        return ValueError(f"Error: {config}")
 
     return Portal(config)
 

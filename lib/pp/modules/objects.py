@@ -37,131 +37,108 @@ class TIA(Config):
 
 
 
-def parse_device(**config: dict[str, Any]) -> Device | ValueError:
+def parse_device(**config: dict[str, Any]) -> Device:
     conf = Device()
     keys = config.keys()
 
     if 'device_name' in keys:
         value = interpret_string(config['device_name'])
-        if isinstance(value, ValueError):
-            return value
         conf.device_name = value
     if 'article_number' in keys:
         value = interpret_string(config['article_number'])
-        if isinstance(value, ValueError):
-            return value
         conf.device_name = value
     if 'version' in keys:
         value = interpret_string(config['version'])
-        if isinstance(value, ValueError):
-            return value
         conf.version = value
 
     return conf
 
-def parse_project(**config: dict[str, Any]) -> Project | ValueError:
+def parse_project(**config: dict[str, Any]) -> Project:
     conf = Project()
     keys = config.keys()
 
     if 'name' in keys:
         value = interpret_string(config['name'])
-        if isinstance(value, ValueError):
-            return value
         conf.name = value
     if 'directory' in keys:
         value = interpret_path(config['directory'])
-        if isinstance(value, ValueError):
-            return value
         conf.directory = value
     if 'devices' in keys:
         conf.devices = []
         for _, dev in config['devices'].items():
             value = interpret_device(dev)
-            if isinstance(value, ValueError):
-                return value
             conf.devices.append(value)
 
 
     return conf
 
 
-def parse_tia(**config: dict[str, Any]) -> TIA | ValueError:
+def parse_tia(**config: dict[str, Any]) -> TIA:
     conf = TIA()
     keys = config.keys()
 
     if 'version' in keys:
         value = interpret_number(config['version'])
-        if isinstance(value, ValueError):
-            return value
         conf.version = value
     if 'filename' in keys:
         value = interpret_string(config['filename'])
-        if isinstance(value, ValueError):
-            return value
         conf.filename = value
     if 'dll' in keys:
         value = interpret_path(config['dll'])
-        if isinstance(value, ValueError):
-            return value
         conf.dll = value
     if 'project' in keys:
         value = interpret_project(config['project'])
-        if isinstance(value, ValueError):
-            return value
         conf.project = value
-
     if 'enable_ui' in keys:
         value = interpret_bool(config['enable_ui'])
-        if isinstance(value, ValueError):
-            return value
         conf.enable_ui = value
 
     return conf
 
 
-def interpret_bool(value: Any) -> bool | ValueError:
+def interpret_bool(value: Any) -> bool:
     if not isinstance(value, bool):
-        return ValueError(f"Not a boolean logic: {value}")
+        raise ValueError(f"Not a boolean logic: {value}")
     
     return value
     
-def interpret_number(value: Any) -> int | ValueError:
+def interpret_number(value: Any) -> int:
         if isinstance(value, int):
             return value
 
         if not isinstance(value, str) or not value.isnumeric():
-            return ValueError(f"Not a valid number: {value}")
+            raise ValueError(f"Not a valid number: {value}")
 
         return int(value)
 
-def interpret_string(value: Any) -> str | ValueError:
+def interpret_string(value: Any) -> str:
         if not isinstance(value, str):
-            return ValueError(f"Not a valid string: {value}")
+            raise ValueError(f"Not a valid string: {value}")
 
         return value
 
-def interpret_path(value: Any) -> Path | ValueError:
+def interpret_path(value: Any) -> Path:
     if not isinstance(value, str):
-        return ValueError(f"Not a valid string path: {value}")
+        raise ValueError(f"Not a valid string path: {value}")
 
     return Path(value)
 
-def interpret_project(value: Any) -> Project | ValueError:
+def interpret_project(value: Any) -> Project:
     if not isinstance(value, dict):
-        return ValueError(f"Invalid project: {value}")
+        raise ValueError(f"Invalid project: {value}")
     
     return parse_project(**value)
 
-def interpret_device(value: Any) -> Device | ValueError:
+def interpret_device(value: Any) -> Device:
     if not isinstance(value, dict):
-        return ValueError(f"Invalid device: {value}")
+        raise ValueError(f"Invalid device: {value}")
     
     return parse_device(**value)
 
 
-def start(**config: dict) -> Config | ValueError:
+def start(**config: dict) -> Config:
 
-    conf: Config | ValueError = parse_tia(**config)
+    conf: Config = parse_tia(**config)
 
     return conf
 
