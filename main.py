@@ -1,5 +1,5 @@
 from lib.pp import pp
-from gui import MenuBar
+from gui import MenuBar, FileDialog
 
 from pathlib import Path
 import wx
@@ -19,21 +19,12 @@ class MainWindow(wx.Frame):
 
 
     def OnOpen(self, e):
-        with wx.FileDialog(
-            self,
-            "Open TIA Portal project config",
-            wildcard="json (*.json)|*.json",
-            style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST
-        ) as fileDialog:
-            if fileDialog.ShowModal() == wx.ID_CANCEL:
-                return
-
-            filepath = fileDialog.GetPath()
-            try:
-                self.portal = pp.parse(filepath)
-                self.control.AppendText(f"\n{self.portal.__str__()}")
-            except IOError:
-                wx.LogError("Cannot open file '%s'." % newfile)
+        filepath = FileDialog.open_config(self)
+        try:
+            self.portal = pp.parse(filepath)
+            self.control.AppendText(f"\n{self.portal.__str__()}")
+        except IOError:
+            wx.LogError("Cannot open file '%s'." % newfile)
 
     def OnClose(self, e):
         self.portal = None

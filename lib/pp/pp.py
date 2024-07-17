@@ -5,7 +5,7 @@ from pathlib import Path
 import json
 import os
 
-class PPError:
+class PPError(Exception):
     def __init__(self, err: str) -> None:
         self.err: str = err
 
@@ -34,15 +34,17 @@ class Portal:
         self.comp = comp
         self.hwf = hwf
 
+        self.TIA: Siemens.Engineering.TiaPortal = self.tia.TiaPortal()
+
     def run(self) -> None:
         # probs make this part run multithreaded since it hangs the gui process
         conf = self.config
         if conf.enable_ui:
             print("Starting TIA with UI")
-            TIA = self.tia.TiaPortal(self.tia.TiaPortalMode.WithUserInterface)
+            self.TIA = self.tia.TiaPortal(self.tia.TiaPortalMode.WithUserInterface)
         else:
             print("Starting TIA without UI")
-            TIA = self.tia.TiaPortal(self.tia.TiaPortalMode.WithoutUserInterface)
+            self.TIA = self.tia.TiaPortal(self.tia.TiaPortalMode.WithoutUserInterface)
 
         self.create_project(conf.project.name, conf.project.directory)
 
@@ -51,10 +53,10 @@ class Portal:
 
     def create_project(self, name: str, path: Path) -> Siemens.Engineering.Project:
         path = self.DirectoryInfo(path.as_posix())
-        if not path.Exists:
+        if path.Exists:
             raise PPError("Failed creating project. Project already exists.")
 
-        project = TIA.Projects.Create(path, name)
+        project = self.TIA.Projects.Create(path, name)
 
         return project
 
