@@ -4,7 +4,7 @@ from . import MenuFile, MenuRun
 
 class S:
     NAME_FILE       = "&File"
-    NAME_RUN        = "&Run"
+    NAME_RUN        = "&Action"
 
 
 def new(frame: wx.Frame) -> wx._core.MenuBar:

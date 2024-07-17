@@ -20,6 +20,8 @@ class MainWindow(wx.Frame):
 
     def OnOpen(self, e):
         filepath = FileDialog.open_config(self)
+        if not filepath:
+            return
         try:
             self.portal = pp.parse(filepath)
             self.control.AppendText(f"\n{self.portal.__str__()}")

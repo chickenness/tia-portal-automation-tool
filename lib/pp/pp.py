@@ -46,17 +46,18 @@ class Portal:
             print("Starting TIA without UI")
             self.TIA = self.tia.TiaPortal(self.tia.TiaPortalMode.WithoutUserInterface)
 
-        self.create_project(conf.project.name, conf.project.directory)
+        project = self.create_project(conf.project.name, conf.project.directory)
 
+        PLC1 = project.Devices.CreateWithItem(conf.project.devices[0].device, conf.project.devices[0].device_name, 'PLC1')
 
-        # PLC1 = PROJECT.Devices.CreateWithItem(conf.project.devices[0].device, conf.project.devices[0].device_name, 'PLC1')
-
-    def create_project(self, name: str, path: Path) -> Siemens.Engineering.Project:
-        path = self.DirectoryInfo(path.as_posix())
+    def create_project(self, name: str, directory: Path) -> Siemens.Engineering.Project:
+        path = self.DirectoryInfo(directory.joinpath(name).as_posix())
         if path.Exists:
-            raise PPError("Failed creating project. Project already exists.")
+            raise PPError(f"Failed creating project. Project already exists ({path})")
 
-        project = self.TIA.Projects.Create(path, name)
+        directory = self.DirectoryInfo(directory.as_posix())
+
+        project = self.TIA.Projects.Create(directory, name)
 
         return project
 
