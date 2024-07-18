@@ -1,8 +1,28 @@
 # TIA Portal Automation Tool
 
-## Running
+## Installation
 
-`python main.py`
+1. Clone repository:
+
+```
+git clone https://github.com/chickenness/tia-portal-automation-tool.git
+```
+
+2. Change directory:
+
+```
+cd tia-portal-automation-tool
+```
+
+3. Install requirements:
+
+```
+pip install -r requirements.txt
+```
+
+And done.
+
+To run, simply `python main.py`.
 
 ## TODO
 
@@ -14,5 +34,8 @@
   - [X] Proof-of-Concept
   - [ ] Showing the json configs
   - [ ] Editable
+  - [ ] wx.StaticBox
+  - [ ] wx.TreeCtrl
+  - [ ] wx.StyledTextCtrl_2
   - [ ] Stopping the portal
 - [ ] Multithread? (since the gui hangs when tia portal runs)

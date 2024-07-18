@@ -13,8 +13,8 @@ def new(parent: wx.Window) -> wx._core.MenuBar:
     _filemenu = MenuFile.new(parent)
     _runmenu = MenuRun.new(parent)
 
-    bar.Append(_filemenu, S.NAME_FILE)
-    bar.Append(_runmenu, S.NAME_RUN)
+    bar.Append(_filemenu,   S.NAME_FILE)
+    bar.Append(_runmenu,    S.NAME_RUN)
 
     parent.SetMenuBar(bar)
 

@@ -1,6 +1,5 @@
 from lib.pp import pp
-from gui import MenuBar, FileDialog, Notebook
-
+from gui import MenuBar, FileDialog, Splitter
 from pathlib import Path
 import wx
 
@@ -13,7 +12,7 @@ class MainWindow(wx.Frame):
         self.CreateStatusBar()
 
         menubar = MenuBar.new(self)
-        notebook = Notebook.new(self)
+        self.splitter = Splitter.new(self)
 
         self.SetMinSize((600,480))
 
@@ -26,7 +25,7 @@ class MainWindow(wx.Frame):
             return
         try:
             self.portal = pp.parse(filepath)
-            self.control.AppendText(f"\n{self.portal.__str__()}")
+            self.splitter.tree.populate(self.portal.config)
         except IOError:
             wx.LogError("Cannot open file '%s'." % newfile)
 
