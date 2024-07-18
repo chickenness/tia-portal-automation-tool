@@ -12,7 +12,7 @@ class Button(wx.Button):
 def browse(parent: wx.Window) -> wx.Button:
     button = Button(parent, label=S.LABEL_BROWSE)
     _root = wx.GetTopLevelParent(button)
-    _root.Bind(wx.EVT_MENU, _root.OnOpen, button)
+    _root.Bind(wx.EVT_BUTTON, _root.OnOpen, button)
 
     return button
 

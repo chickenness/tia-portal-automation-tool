@@ -23,6 +23,7 @@ pip install -r requirements.txt
 And done.
 
 To run, simply `python main.py`.
+Or run `python gui.py` for graphical usage.
 
 ## TODO
 

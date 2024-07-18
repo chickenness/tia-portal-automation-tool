@@ -25,7 +25,7 @@ class MainWindow(wx.Frame):
             return
         try:
             self.portal = pp.parse(filepath)
-            self.splitter.tree.populate(self.portal.config)
+            # self.splitter.tree.populate(self.portal.config)
         except IOError:
             wx.LogError("Cannot open file '%s'." % newfile)
 
