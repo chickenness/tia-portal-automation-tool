@@ -1,24 +1,23 @@
-from . import Panel
 import wx
 
+from . import Splitter, Panel
 
 class S:
-    PAGE_LOGS       = "Logs"
-    PAGE_PROJECT    = "Project"
-    PAGE_SETTINGS   = "Settings"
+    TAB_PROJECT     = "Project"
+    TAB_CONFIG      = "Config"
 
+class Notebook(wx.Notebook):
+    def __init__(self, parent: wx.Window) -> None:
+        wx.Notebook.__init__(self, parent)
 
 def new(parent: wx.Window) -> wx.Notebook:
-    notebook: wx.Notebook = wx.Notebook(parent)
+    notebook: wx.Notebook = Notebook(parent)
 
-    _logs       = Panel.log(notebook)
-    _project    = Panel.project(notebook)
-    _settings   = Panel.settings(notebook)
+    notebook.tab_project = Panel.project(notebook)
+    notebook.tab_config = Splitter.new(notebook)
 
-    notebook.AddPage(_project,  S.PAGE_PROJECT)
-    notebook.AddPage(_logs,     S.PAGE_LOGS)
-    notebook.AddPage(_settings, S.PAGE_SETTINGS)
-    # parent.SetClientSize(notebook.GetBestSize()) 
+    notebook.AddPage(notebook.tab_project, S.TAB_PROJECT)
+    notebook.AddPage(notebook.tab_config, S.TAB_CONFIG)
 
     return notebook
 

@@ -1,5 +1,5 @@
 from lib.pp import pp
-from gui import MenuBar, FileDialog, Splitter
+from gui import MenuBar, FileDialog, Notebook
 from pathlib import Path
 import wx
 
@@ -12,7 +12,7 @@ class MainWindow(wx.Frame):
         self.CreateStatusBar()
 
         menubar = MenuBar.new(self)
-        self.splitter = Splitter.new(self)
+        notebook = Notebook.new(self)
 
         self.SetMinSize((600,480))
 
