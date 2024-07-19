@@ -17,8 +17,8 @@ class Device(Config):
     Found on 7.15.3 around page 213
     """
 
-    DeviceTypeId: str       = "PLC_1"
     DeviceItemTypeId: str   = "OrderNumber:6ES7 510-1DJ01-0AB0/V2.0"
+    DeviceTypeId: str       = "PLC_1"
     DeviceItemName: str     = "NewDevice"
     DeviceName: str         = ""
 
@@ -58,6 +58,7 @@ def process_config(config: Config, **data: dict[str, Any]) -> Config:
             continue
 
         config_var = getattr(config, key)
+
         if isinstance(config_var, bool):
             result = interpret_bool(value)
             setattr(config, key, result)
@@ -111,6 +112,7 @@ def interpret_bool(value: Any) -> bool:
         raise ValueError(f"Not a boolean logic: {value}")
     
     return value
+
     
 def interpret_number(value: Any) -> int:
         if isinstance(value, int):
@@ -124,6 +126,8 @@ def interpret_number(value: Any) -> int:
 def interpret_string(value: Any) -> str:
         if not isinstance(value, str):
             raise ValueError(f"Not a valid string: {value}")
+        if not value:
+            return None
 
         return value
 

@@ -8,15 +8,19 @@ class S:
 class Button(wx.Button):
     def __init__(self, parent: wx.Window, **kwargs) -> None:
         wx.Button.__init__(self, parent, **kwargs)
+        self.root = wx.GetTopLevelParent(self)
+
+    def bind(self, cmd):
+        self.root.Bind(wx.EVT_BUTTON, cmd, self)
 
 def browse(parent: wx.Window) -> wx.Button:
     button = Button(parent, label=S.LABEL_BROWSE)
-    _root = wx.GetTopLevelParent(button)
-    _root.Bind(wx.EVT_BUTTON, _root.OnOpen, button)
+    button.bind(button.root.OnOpen)
 
     return button
 
 def execute(parent: wx.Window) -> wx.Button:
     button = Button(parent, label=S.LABEL_EXECUTE)
+    button.bind(button.root.OnRun)
 
     return button

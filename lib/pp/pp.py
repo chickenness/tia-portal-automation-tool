@@ -69,7 +69,7 @@ def create_project(siemens: Siemens, tia: Siemens.Engineering.Tia, name: str, di
 
 def add_devices(project: Siemens.Engineering.Project, devices: list[objects.Device]) -> None:
     for dev in devices:
-        project.Devices.CreateWithItem(dev.device, dev.device_name, 'PLC1')
+        project.Devices.CreateWithItem(dev.DeviceItemTypeId, dev.DeviceTypeId, dev.DeviceItemName)
     
 
 

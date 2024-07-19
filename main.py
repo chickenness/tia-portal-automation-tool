@@ -42,8 +42,6 @@ class MainWindow(wx.Frame):
             return
 
         self.automate()
-        # self.control.AppendText(f"\n{self.portal.config}")
-        # self.control.AppendText(f"\n{self.portal.config.project.devices[0]}")
 
     def OnExit(self, e):
         self.Close(True)
