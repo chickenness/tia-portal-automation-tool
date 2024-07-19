@@ -12,8 +12,8 @@ class MainWindow(wx.Frame):
 
         self.CreateStatusBar()
 
-        menubar = MenuBar.new(self)
-        notebook = Notebook.new(self)
+        self.menubar = MenuBar.new(self)
+        self.notebook = Notebook.new(self)
 
         self.SetMinSize((600,480))
 
@@ -24,6 +24,7 @@ class MainWindow(wx.Frame):
         filepath = FileDialog.open_config(self)
         if not filepath:
             return
+        self.notebook.tab_project.config_path.write(filepath)
         try:
             data = pp.parse(filepath)
             self.siemens = data['siemens']
