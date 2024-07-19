@@ -7,7 +7,8 @@ import wx
 class MainWindow(wx.Frame):
     def __init__(self, parent, title) -> None:
         wx.Frame.__init__(self, parent, title=title, size=(800,600))
-        self.portal: pp.Portal = None
+        self.siemens: pp.Siemens = None
+        self.config: pp.objects.Config = None
 
         self.CreateStatusBar()
 
@@ -24,29 +25,40 @@ class MainWindow(wx.Frame):
         if not filepath:
             return
         try:
-            self.portal = pp.parse(filepath)
+            data = pp.parse(filepath)
+            self.siemens = data['siemens']
+            self.config = data['config']
             # self.splitter.tree.populate(self.portal.config)
+
         except IOError:
             wx.LogError("Cannot open file '%s'." % newfile)
 
     def OnClose(self, e):
-        self.portal = None
+        self.siemens = None
+        self.config = None
 
     def OnRun(self, e):
-        if not isinstance(self.portal, pp.Portal):
+        if not isinstance(self.siemens, pp.Siemens):
             return
 
-        self.portal.run()
-        self.control.AppendText(f"\n{self.portal.config}")
-        self.control.AppendText(f"\n{self.portal.config.project.devices[0]}")
+        self.automate()
+        # self.control.AppendText(f"\n{self.portal.config}")
+        # self.control.AppendText(f"\n{self.portal.config.project.devices[0]}")
 
     def OnExit(self, e):
         self.Close(True)
+        self.Destroy()
+    
+    def automate(self) -> None:
+        instance = pp.create_tia_instance(self.siemens, self.config)
+        project = pp.create_project(self.siemens, instance, self.config.project.name, self.config.project.directory)
+        pp.add_devices(project, self.config.project.devices)
+            
+
 
 
 if __name__ == '__main__':
     app = wx.App(False)
     frame = MainWindow(None, title="TIA Portal Automation Tool")
     app.MainLoop()
-
 

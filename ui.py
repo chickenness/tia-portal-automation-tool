@@ -34,7 +34,7 @@ class S:
 class MainWindow(wx.Frame):
     def __init__(self, parent, title) -> None:
         wx.Frame.__init__(self, parent, title=title, size=(800,600))
-        self.portal: pp.Portal = None
+        self.siemens: pp.Siemens = None
 
         self.CreateStatusBar()
 
@@ -96,23 +96,24 @@ class MainWindow(wx.Frame):
         if not filepath:
             return
         try:
-            self.portal = pp.parse(filepath)
+            self.siemens = pp.parse(filepath)
         except IOError:
             wx.LogError("Cannot open file '%s'." % newfile)
 
     def OnClose(self, e):
-        self.portal = None
+        self.siemens = None
 
     def OnRun(self, e):
-        if not isinstance(self.portal, pp.Portal):
+        if not isinstance(self.siemens, pp.Siemens):
             return
 
-        self.portal.run()
-        self.control.AppendText(f"\n{self.portal.config}")
-        self.control.AppendText(f"\n{self.portal.config.project.devices[0]}")
+        self.siemens.run()
+        # self.control.AppendText(f"\n{self.portal.config}")
+        # self.control.AppendText(f"\n{self.portal.config.project.devices[0]}")
 
     def OnExit(self, e):
         self.Close(True)
+        self.Destroy()
 
 
 if __name__ == '__main__':
