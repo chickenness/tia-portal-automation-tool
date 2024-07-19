@@ -5,18 +5,22 @@ from typing import List, Dict, Any
 
 @dataclass
 class Config:
+    """
+    The keys are based on https://cache.industry.siemens.com/dl/files/163/109477163/att_926042/v1/TIAPortalOpennessenUS_en-US.pdf
+    """
     pass
 
 
 @dataclass
 class Device(Config):
-    device_name: str        = "PLCDev_1"
-    article_number: str     = "OrderNumber:6ES7 513-1AL02-0AB0"
-    version: str            = "2.6"
-    device: str             = field(init=False)
+    """
+    Found on 7.15.3 around page 213
+    """
 
-    def __post_init__(self):
-        self.device = f"{self.article_number}/V{self.version}"
+    DeviceTypeId: str       = "PLC_1"
+    DeviceItemTypeId: str   = "OrderNumber:6ES7 510-1DJ01-0AB0/V2.0"
+    DeviceItemName: str     = "NewDevice"
+    DeviceName: str         = ""
 
 @dataclass
 class Project(Config):
@@ -36,62 +40,68 @@ class TIA(Config):
         self.dll = Path(rf"C:/Program Files/Siemens/Automation/Portal V{self.version}/PublicAPI/V{self.version}/{self.filename}")
 
 
+def process_config(config: Config, **data: dict[str, Any]) -> Config:
+    """
+    I created this function so that there's no need to type in the individual key names.
+    Tends to get annoying to rename them or add a new key to be parsed.
 
-def parse_device(**config: dict[str, Any]) -> Device:
-    conf = Device()
-    keys = config.keys()
+    1. Check the variables of the class 'config'
+    2. Check the keys of the dictionary 'data'
+    3. Iterate only the keys that's in the class
+    4. Check the type of the key-variable and perform operation for it
+    5. Set the value of the config class variable based on the previous step result
+    """
+    
+    variables = vars(config).keys()
+    for key, value in data.items():
+        if not key in variables:
+            continue
 
-    if 'device_name' in keys:
-        value = interpret_string(config['device_name'])
-        conf.device_name = value
-    if 'article_number' in keys:
-        value = interpret_string(config['article_number'])
-        conf.device_name = value
-    if 'version' in keys:
-        value = interpret_string(config['version'])
-        conf.version = value
+        config_var = getattr(config, key)
+        if isinstance(config_var, bool):
+            result = interpret_bool(value)
+            setattr(config, key, result)
+        if isinstance(config_var, int):
+            result = interpret_number(value)
+            setattr(config, key, result)
+        if isinstance(config_var, str):
+            result = interpret_string(value)
+            setattr(config, key, result)
+        if isinstance(config_var, Path):
+            result = interpret_path(value)
+            setattr(config, key, result)
+
+    return config
+
+
+
+def parse_device(**data: dict[str, Any]) -> Device:
+    conf = process_config(Device(), **data)
+    keys = data.keys()
 
     return conf
 
-def parse_project(**config: dict[str, Any]) -> Project:
-    conf = Project()
-    keys = config.keys()
+def parse_project(**data: dict[str, Any]) -> Project:
+    conf = process_config(Project(), **data)
+    keys = data.keys()
 
-    if 'name' in keys:
-        value = interpret_string(config['name'])
-        conf.name = value
-    if 'directory' in keys:
-        value = interpret_path(config['directory'])
-        conf.directory = value
     if 'devices' in keys:
         conf.devices = []
-        for _, dev in config['devices'].items():
+        for _, dev in data['devices'].items():
             value = interpret_device(dev)
             conf.devices.append(value)
 
-
     return conf
 
 
-def parse_tia(**config: dict[str, Any]) -> TIA:
-    conf = TIA()
-    keys = config.keys()
+def parse_tia(**data: dict[str, Any]) -> TIA:
+    conf = process_config(TIA(), **data)
+    keys = data.keys()
 
-    if 'version' in keys:
-        value = interpret_number(config['version'])
-        conf.version = value
-    if 'filename' in keys:
-        value = interpret_string(config['filename'])
-        conf.filename = value
-    if 'dll' in keys:
-        value = interpret_path(config['dll'])
-        conf.dll = value
     if 'project' in keys:
-        value = interpret_project(config['project'])
+        value = interpret_project(data['project'])
         conf.project = value
-    if 'enable_ui' in keys:
-        value = interpret_bool(config['enable_ui'])
-        conf.enable_ui = value
+    conf.__post_init__()
 
     return conf
 
@@ -141,113 +151,3 @@ def start(**config: dict) -> Config:
     conf: Config = parse_tia(**config)
 
     return conf
-
-
-
-# class Config(ABC):
-#
-#     def __init__(self, **config: dict) -> None:
-#         """
-#         Set the config values based on the JSON config file.
-#         This will call the function in each classes.
-#
-#         :param config: Dictionary values of the JSON configuration
-#         """
-#
-#         for key, value in config.items():
-#             func = f"fn_{key}"
-#             if hasattr(self, func):
-#                 getattr(self, func)(value)
-#
-#     def __repr__(self) -> str:
-#         text = ""
-#         for key, value in vars(self).items():
-#             text += '\n'
-#             text += f"{key} = {value}"
-#
-#         return text
-#
-#
-#     def print(self, level: int = 0) -> None:
-#         for key, value in vars(self).items():
-#             if isinstance(value, Config):
-#                 print(f"{key} = ")
-#                 value.print(level+1)
-#             else:
-#                 print(f"{'\t'*level}{key} = {value}")
-#
-#
-#
-#
-#
-# class Device(Config):
-#
-#     def __init__(self, **config: dict) -> None:
-#         self.device_name: str       = "PLCDev_1"
-#         self.article_number: str    = "OrderNumber:6ES7 513-1AL02-0AB0"
-#         self.version: str           = "2.6"
-#
-#         super().__init__(**config)
-#
-#     def fn_device_name(self, value):
-#         self.device_name = value
-#
-#     def fn_article_number(self, value):
-#         self.article_number = value
-#
-#     def fn_version(self, value):
-#         self.version = value
-#
-#
-#
-# class Project(Config):
-#
-#     def __init__(self, **config: dict) -> None:
-#         self.name: str              = "AutomationProject420"
-#         self.directory: Path        = Path.home()
-#         self.devices: list[Device]  = []
-#
-#         super().__init__(**config)
-#
-#     def fn_name(self, value) -> None:
-#         self.name = value
-#
-#     def fn_directory(self, value) -> None:
-#         self.directory = Path(value)
-#
-#     def fn_devices(self, devices) -> None:
-#         for _, value in devices.items():
-#             device = Device(**value)
-#             self.devices.append(device)
-#
-#
-#
-#
-# class TIA(Config):
-#
-#     def __init__(self, **config: dict) -> None:
-#         self.version: int               = 18
-#         self.filename: str              = "Siemens.Engineering.dll"
-#         self.dll: Path                  = Path(rf"C:/Program Files/Siemens/Automation/Portal V{self.version}/PublicAPI/V{self.version}/{self.filename}")
-#         self.project: Project | None    = None
-#         
-#         
-#         super().__init__(**config)
-#
-#     def fn_version(self, value) -> None:
-#         if not value.isnumeric():
-#             raise PPError("Not a valid integer.")
-#
-#         self.version = int(value)
-#
-#     def fn_filename(self, value) -> None:
-#         self.filename = value
-#
-#     def fn_dll(self, value) -> None:
-#         self.dll = Path(value)
-#
-#     def fn_project(self, value) -> None:
-#         if not isinstance(value, dict):
-#             raise PPError("Invalid Project")
-#
-#         self.project = Project(**value)
