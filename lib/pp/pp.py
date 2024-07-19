@@ -1,9 +1,19 @@
 from __future__ import annotations
 
 from .modules import objects
+from datetime import datetime
 from pathlib import Path
+from typing import Union
 import json
 import os
+
+class PPLogger:
+    def __init__(self, message: str) -> None:
+        self.message: str = message
+        self.timestamp: datetime = datetime.now()
+
+    def __repr(self) -> str:
+        return f"[{self.timestamp}] {self.message}"
 
 class PPError(Exception):
     def __init__(self, err: str) -> None:
@@ -16,12 +26,10 @@ class ProjectExistsError(PPError):
     def __repr__(self) -> str:
         return f"ProjectExistsError: {self.err}"
 
-class Portal:
-    def __init__(self, config: objects.Config) -> None:
-        self.config = config
-
+class Siemens:
+    def __init__(self, clr_path: Path) -> Siemens:
         import clr
-        clr.AddReference(self.config.dll.as_posix())
+        clr.AddReference(clr_path.as_posix())
 
         from System.IO import DirectoryInfo, FileInfo
         import Siemens.Engineering as tia
@@ -34,36 +42,38 @@ class Portal:
         self.comp = comp
         self.hwf = hwf
 
-        self.TIA: Siemens.Engineering.TiaPortal = self.tia.TiaPortal()
 
-    def run(self) -> None:
-        # probs make this part run multithreaded since it hangs the gui process
-        conf = self.config
-        if conf.enable_ui:
-            print("Starting TIA with UI")
-            self.TIA = self.tia.TiaPortal(self.tia.TiaPortalMode.WithUserInterface)
-        else:
-            print("Starting TIA without UI")
-            self.TIA = self.tia.TiaPortal(self.tia.TiaPortalMode.WithoutUserInterface)
+def create_tia_instance(siemens: Siemens, config: objects.Config) -> Siemens.Engineering.TiaPortal:
+    TIA: Siemens.Engineering.TiaPortal = siemens.tia.TiaPortal()
+    # probs make this part run multithreaded since it hangs the gui process
+    conf = config
+    if conf.enable_ui:
+        print("Starting TIA with UI")
+        TIA = siemens.tia.TiaPortal(siemens.tia.TiaPortalMode.WithUserInterface)
+    else:
+        print("Starting TIA without UI")
+        TIA = siemens.tia.TiaPortal(siemens.tia.TiaPortalMode.WithoutUserInterface)
 
-        project = self.create_project(conf.project.name, conf.project.directory)
+    return TIA
 
-        PLC1 = project.Devices.CreateWithItem(conf.project.devices[0].device, conf.project.devices[0].device_name, 'PLC1')
+def create_project(siemens: Siemens, tia: Siemens.Engineering.Tia, name: str, directory: Path) -> Siemens.Engineering.Project:
+    path = siemens.DirectoryInfo(directory.joinpath(name).as_posix())
+    if path.Exists:
+        raise PPError(f"Failed creating project. Project already exists ({path})")
 
-    def create_project(self, name: str, directory: Path) -> Siemens.Engineering.Project:
-        path = self.DirectoryInfo(directory.joinpath(name).as_posix())
-        if path.Exists:
-            raise PPError(f"Failed creating project. Project already exists ({path})")
+    directory = siemens.DirectoryInfo(directory.as_posix())
 
-        directory = self.DirectoryInfo(directory.as_posix())
+    project = tia.Projects.Create(directory, name)
 
-        project = self.TIA.Projects.Create(directory, name)
+    return project
 
-        return project
+def add_devices(project: Siemens.Engineering.Project, devices: list[objects.Device]) -> None:
+    for dev in devices:
+        project.Devices.CreateWithItem(dev.device, dev.device_name, 'PLC1')
+    
 
 
-
-def parse(path: str) -> Portal:
+def parse(path: str) -> dict[str, Union[Siemens, objects.Config]]:
     """
     Initialize TIA Portal config parser with the path to the configuration file
     Loads and process the JSON configuration file into python classes.
@@ -83,7 +93,11 @@ def parse(path: str) -> Portal:
         conf: dict = json.load(file)
 
     config: objects.Config = objects.start(**conf)
+    siemens: Siemens = Siemens(config.dll)
 
-    return Portal(config)
+    data: dict[str, Union[Siemens, objects.Config]] = {}
+    data['config'] = config
+    data['siemens'] = siemens
 
+    return data
 
