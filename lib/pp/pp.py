@@ -67,9 +67,13 @@ def create_project(siemens: Siemens, tia: Siemens.Engineering.Tia, name: str, di
 
     return project
 
-def add_devices(project: Siemens.Engineering.Project, devices: list[objects.Device]) -> None:
+def add_devices(project: Siemens.Engineering.Project, devices: list[objects.Device]) -> list[Siemens.Engineering.HW.DeviceImpl]:
+    hardware: list[Siemens.Engineering.HW.DeviceImpl] = []
     for dev in devices:
-        project.Devices.CreateWithItem(dev.DeviceItemTypeId, dev.DeviceTypeId, dev.DeviceItemName)
+        hw = project.Devices.CreateWithItem(dev.DeviceItemTypeId, dev.DeviceTypeId, dev.DeviceItemName)
+        hardware.append(hw)
+
+    return hardware
     
 
 
