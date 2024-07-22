@@ -72,23 +72,23 @@ def add_devices(project: Siemens.Engineering.Project, devices: list[objects.Devi
     for dev in devices:
         hw = project.Devices.CreateWithItem(dev.DeviceItemTypeId, dev.DeviceTypeId, dev.DeviceItemName)
         hardware.append(hw)
-        add_device_items(project, hw, dev.items)
+        add_device_items(project, hw, dev.items, dev.slots_required)
 
     return hardware
 
 def add_device_items(
         project: Siemens.Engineering.Project,
         device: Siemens.Engineering.HW.DeviceImpl,
-        device_items: list[objects.DeviceItem]
+        device_items: list[objects.DeviceItem],
+        slots_required: int
     ):
-    n = 0
     for item in device_items:
-        while not (device.DeviceItems[n].CanPlugNew(item.TypeIdentifier, item.Name, item.PositionNumber)):
-            print(f"Can't plug on position: {n}")
-            n += 1
-            break
-        device.DeviceItems[n].PlugNew(item.TypeIdentifier, item.Name, item.PositionNumber)
-        print(f"[{n}] PLUGGED.")
+        if (device.DeviceItems[0].CanPlugNew(item.TypeIdentifier, item.Name, item.PositionNumber + slots_required)):
+            device.DeviceItems[0].PlugNew(item.TypeIdentifier, item.Name, item.PositionNumber + slots_required)
+            print(f"{item.TypeIdentifier} PLUGGED on [{item.PositionNumber + slots_required}].")
+        else:
+            print(f"{item.TypeIdentifier} Not PLUGGED on {item.PositionNumber + slots_required}")
+
 
 
 def parse(path: str) -> dict[str, Union[Siemens, objects.Config]]:

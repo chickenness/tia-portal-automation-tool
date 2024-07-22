@@ -6,7 +6,9 @@ from typing import List, Dict, Any
 @dataclass
 class Config:
     """
-    The keys are based on https://cache.industry.siemens.com/dl/files/163/109477163/att_926042/v1/TIAPortalOpennessenUS_en-US.pdf
+    The keys are based on https://cache.industry.siemens.com/dl/files/163/109477163/att_926042/v1/TIAPortalOpennessenUS_en-US.pdf.
+    Adding the key and its type annotation along with its default value should be enough.
+    If the said key is another json object, create a new child class Config for it then its functions as well: interpret_class and parse_class.
     """
     pass
 
@@ -27,7 +29,7 @@ class DeviceItem(Config):
 
     TypeIdentifier: str     = "OrderNumber:6ES7 521-1BL00-0AB0/V2.1"
     Name: str               = "IO1"
-    PositionNumber: int     = 1
+    PositionNumber: int     = 0
 
 @dataclass
 class Device(Config):
@@ -49,6 +51,7 @@ class Device(Config):
     DeviceItemName: str     = "NewDevice"
     DeviceName: str         = ""
     items: list[DeviceItem] = field(default_factory=list)
+    slots_required: int     = 2
 
 @dataclass
 class Project(Config):
