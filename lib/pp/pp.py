@@ -72,9 +72,23 @@ def add_devices(project: Siemens.Engineering.Project, devices: list[objects.Devi
     for dev in devices:
         hw = project.Devices.CreateWithItem(dev.DeviceItemTypeId, dev.DeviceTypeId, dev.DeviceItemName)
         hardware.append(hw)
+        add_device_items(project, hw, dev.items)
 
     return hardware
-    
+
+def add_device_items(
+        project: Siemens.Engineering.Project,
+        device: Siemens.Engineering.HW.DeviceImpl,
+        device_items: list[objects.DeviceItem]
+    ):
+    n = 0
+    for item in device_items:
+        while not (device.DeviceItems[n].CanPlugNew(item.TypeIdentifier, item.Name, item.PositionNumber)):
+            print(f"Can't plug on position: {n}")
+            n += 1
+            break
+        device.DeviceItems[n].PlugNew(item.TypeIdentifier, item.Name, item.PositionNumber)
+        print(f"[{n}] PLUGGED.")
 
 
 def parse(path: str) -> dict[str, Union[Siemens, objects.Config]]:

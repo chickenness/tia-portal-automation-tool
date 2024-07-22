@@ -23,7 +23,6 @@ pip install -r requirements.txt
 And done.
 
 To run, simply `python main.py`.
-Or run `python gui.py` for graphical usage.
 
 ## TODO
 
@@ -34,9 +33,8 @@ Or run `python gui.py` for graphical usage.
 - [ ] GUI
   - [X] Proof-of-Concept
   - [ ] Showing the json configs
-  - [ ] Editable
-  - [ ] wx.StaticBox
-  - [ ] wx.TreeCtrl
+  - [X] wx.StaticBox
+  - [X] wx.TreeCtrl
   - [ ] wx.StyledTextCtrl_2
   - [ ] Stopping the portal
 - [ ] Multithread? (since the gui hangs when tia portal runs)

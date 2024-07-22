@@ -12,8 +12,9 @@ class MainWindow(wx.Frame):
 
         self.CreateStatusBar()
 
-        self.menubar = MenuBar.new(self)
-        self.notebook = Notebook.new(self)
+        menubar = MenuBar.new(self)
+        notebook = Notebook.new(self)
+        self.tab_conf_textbox = notebook.tab_project.config_path
 
         self.SetMinSize((600,480))
 
@@ -24,7 +25,8 @@ class MainWindow(wx.Frame):
         filepath = FileDialog.open_config(self)
         if not filepath:
             return
-        self.notebook.tab_project.config_path.write(filepath)
+
+        self.tab_conf_textbox.write(filepath)
         try:
             data = pp.parse(filepath)
             self.siemens = data['siemens']
@@ -51,10 +53,8 @@ class MainWindow(wx.Frame):
     def automate(self) -> None:
         instance = pp.create_tia_instance(self.siemens, self.config)
         project = pp.create_project(self.siemens, instance, self.config.project.name, self.config.project.directory)
-        pp.add_devices(project, self.config.project.devices)
+        hardware = pp.add_devices(project, self.config.project.devices)
             
-
-
 
 if __name__ == '__main__':
     app = wx.App(False)
