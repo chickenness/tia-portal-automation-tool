@@ -12,15 +12,43 @@ class Config:
 
 
 @dataclass
+class DeviceItem(Config):
+    """
+    Found on 7.16.2 around p. 223
+
+    |-----------------|----------|--------------------------------------------|
+    | Name            | Type     | Description                                |
+    |-----------------|----------|--------------------------------------------|
+    | typeIdentifier  | string   | type identifier of the created device item |
+    | name            | string   | name of created device item                |
+    | positionNumber  | int      | position number of the created device item |
+    |-----------------|----------|--------------------------------------------|
+    """
+
+    TypeIdentifier: str     = "OrderNumber:6ES7 521-1BL00-0AB0/V2.1"
+    Name: str               = "IO1"
+    PositionNumber: int     = 1
+
+@dataclass
 class Device(Config):
     """
     Found on 7.15.3 around page 213
+
+    |--------------------|--------|--------------------------------------------|
+    | Name               | Type   | Description                                |
+    |--------------------|--------|--------------------------------------------|
+    | DeviceItemTypeId   | string | Type identifier of the device item         |
+    | DeviceTypeId       | string | Type identifier of the device              |
+    | DeviceItemName     | string | Name of the created device item            |
+    | DeviceName         | string | Name of the created device                 |
+    |--------------------|--------|--------------------------------------------|
     """
 
     DeviceItemTypeId: str   = "OrderNumber:6ES7 510-1DJ01-0AB0/V2.0"
     DeviceTypeId: str       = "PLC_1"
     DeviceItemName: str     = "NewDevice"
     DeviceName: str         = ""
+    items: list[DeviceItem] = field(default_factory=list)
 
 @dataclass
 class Project(Config):
@@ -74,11 +102,20 @@ def process_config(config: Config, **data: dict[str, Any]) -> Config:
 
     return config
 
+def parse_device_item(**data: dict[str, Any]) -> DeviceItem:
+    conf = process_config(DeviceItem(), **data)
+
+    return conf
 
 
 def parse_device(**data: dict[str, Any]) -> Device:
     conf = process_config(Device(), **data)
     keys = data.keys()
+
+    if 'items' in keys:
+        for item in data['items']:
+            value = interpret_device_item(item)
+            conf.items.append(value)
 
     return conf
 
@@ -87,7 +124,7 @@ def parse_project(**data: dict[str, Any]) -> Project:
     keys = data.keys()
 
     if 'devices' in keys:
-        conf.devices = []
+        # conf.devices = []
         for _, dev in data['devices'].items():
             value = interpret_device(dev)
             conf.devices.append(value)
@@ -115,21 +152,21 @@ def interpret_bool(value: Any) -> bool:
 
     
 def interpret_number(value: Any) -> int:
-        if isinstance(value, int):
-            return value
+    if isinstance(value, int):
+        return value
 
-        if not isinstance(value, str) or not value.isnumeric():
-            raise ValueError(f"Not a valid number: {value}")
+    if not isinstance(value, str) or not value.isnumeric():
+        raise ValueError(f"Not a valid number: {value}")
 
-        return int(value)
+    return int(value)
 
 def interpret_string(value: Any) -> str:
-        if not isinstance(value, str):
-            raise ValueError(f"Not a valid string: {value}")
-        if not value:
-            return None
+    if not isinstance(value, str):
+        raise ValueError(f"Not a valid string: {value}")
+    if not value:
+        return None
 
-        return value
+    return value
 
 def interpret_path(value: Any) -> Path:
     if not isinstance(value, str):
@@ -148,6 +185,12 @@ def interpret_device(value: Any) -> Device:
         raise ValueError(f"Invalid device: {value}")
     
     return parse_device(**value)
+
+def interpret_device_item(value: Any) -> DeviceItem:
+    if not isinstance(value, dict):
+        raise ValueError(f"Invalid device item: {value}")
+    
+    return parse_device_item(**value)
 
 
 def start(**config: dict) -> Config:
