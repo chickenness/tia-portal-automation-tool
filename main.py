@@ -53,8 +53,9 @@ class MainWindow(wx.Frame):
     def automate(self) -> None:
         instance = pp.create_tia_instance(self.siemens, self.config)
         project = pp.create_project(self.siemens, instance, self.config.project.name, self.config.project.directory)
-        hardware = pp.add_devices(project, self.config.project.devices)
-            
+        hardware = pp.add_devices(project, self.config.project.devices, self.siemens)
+        pp.connect_device_interface(hardware[1], self.config.project.networks)
+        
 
 if __name__ == '__main__':
     app = wx.App(False)

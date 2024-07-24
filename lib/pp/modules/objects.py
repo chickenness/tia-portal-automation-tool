@@ -52,12 +52,20 @@ class Device(Config):
     DeviceName: str         = ""
     items: list[DeviceItem] = field(default_factory=list)
     slots_required: int     = 2
+    network_address: str    = "192.168.0.112"
+
+@dataclass
+class Network(Config):
+    address: str            = "192.168.0.112"
+    subnet_name: str        = "Profinet"
+    io_controller: str      = "PNIO"
 
 @dataclass
 class Project(Config):
     name: str               = "AutomationProject420"
     directory: Path         = Path.home()
     devices: list[Device]   = field(default_factory=list)
+    networks: list[Network] = field(default_factory=list)
 
 @dataclass
 class TIA(Config):
@@ -111,6 +119,12 @@ def parse_device_item(**data: dict[str, Any]) -> DeviceItem:
     return conf
 
 
+def parse_network(**data: dict[str, Any]) -> Device:
+    conf = process_config(Network(), **data)
+    keys = data.keys()
+
+    return conf
+
 def parse_device(**data: dict[str, Any]) -> Device:
     conf = process_config(Device(), **data)
     keys = data.keys()
@@ -127,10 +141,14 @@ def parse_project(**data: dict[str, Any]) -> Project:
     keys = data.keys()
 
     if 'devices' in keys:
-        # conf.devices = []
         for _, dev in data['devices'].items():
             value = interpret_device(dev)
             conf.devices.append(value)
+
+    if 'networks' in keys:
+        for network in data['networks']:
+            value = interpret_network(network)
+            conf.networks.append(value)
 
     return conf
 
@@ -188,6 +206,12 @@ def interpret_device(value: Any) -> Device:
         raise ValueError(f"Invalid device: {value}")
     
     return parse_device(**value)
+
+def interpret_network(value: Any) -> Network:
+    if not isinstance(value, dict):
+        raise ValueError(f"Invalid network configuration: {value}")
+
+    return parse_network(**value)
 
 def interpret_device_item(value: Any) -> DeviceItem:
     if not isinstance(value, dict):
