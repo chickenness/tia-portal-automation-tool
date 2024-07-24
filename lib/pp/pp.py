@@ -12,7 +12,7 @@ class PPLogger:
         self.message: str = message
         self.timestamp: datetime = datetime.now()
 
-    def __repr(self) -> str:
+    def __repr__(self) -> str:
         return f"[{self.timestamp}] {self.message}"
 
 class PPError(Exception):
@@ -20,8 +20,8 @@ class PPError(Exception):
         self.err: str = err
 
 class ProjectExistsError(PPError):
-    def __init__(err: str) -> None:
-        super().__init__(self, err)
+    def __init__(self, err: str) -> None:
+        super().__init__(err)
 
     def __repr__(self) -> str:
         return f"ProjectExistsError: {self.err}"
@@ -67,21 +67,19 @@ def create_project(siemens: Siemens, tia: Siemens.Engineering.Tia, name: str, di
 
     return project
 
-def add_devices(project: Siemens.Engineering.Project, devices: list[objects.Device], siemens: Siemens) -> list[Siemens.Engineering.HW.DeviceImpl]:
+def add_devices(project: Siemens.Engineering.Project, devices: list[objects.Device], siemens: Siemens) -> tuple[list[Siemens.Engineering.HW.DeviceImpl], list[Siemens.Engineering.HW.Features.NetworkInterface]]:
     hardware: list[Siemens.Engineering.HW.DeviceImpl] = []
     interface: list[Siemens.Engineering.HW.Features.NetworkInterface] = []
     for dev in devices:
         hw = project.Devices.CreateWithItem(dev.DeviceItemTypeId, dev.DeviceTypeId, dev.DeviceItemName)
         hardware.append(hw)
-        add_device_items(project, hw, dev.items, dev.slots_required)
+        add_device_items(hw, dev.items, dev.slots_required)
         network_service = assign_device_address(hw, dev.network_address, siemens)
         interface.append(network_service)
 
     return hardware, [i for i in interface if i is not None]
-    # return list(zip(hardware, [i for i in interface if i is not None]))
 
-def add_device_items(project: Siemens.Engineering.Project,
-                     device: Siemens.Engineering.HW.DeviceImpl,
+def add_device_items( device: Siemens.Engineering.HW.DeviceImpl,
                      device_items: list[objects.DeviceItem],
                      slots_required: int
                      ):
@@ -93,7 +91,7 @@ def add_device_items(project: Siemens.Engineering.Project,
         else:
             print(f"{item.TypeIdentifier} Not PLUGGED on {item.PositionNumber + slots_required}")
 
-def assign_device_address(device: Siemens.Engineering.HW.DeviceImpl, address: str, siemens: Siemens) -> list[Union[Siemens.Engineering.HW.Features.NetworkInterface, None]]:
+def assign_device_address(device: Siemens.Engineering.HW.DeviceImpl, address: str, siemens: Siemens) -> list[Siemens.Engineering.HW.Features.NetworkInterface] | None: 
     items = device.DeviceItems[1].DeviceItems
     for item in items:
         network_service = siemens.tia.IEngineeringServiceProvider(item).GetService[siemens.hwf.NetworkInterface]()

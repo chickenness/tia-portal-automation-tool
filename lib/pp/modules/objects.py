@@ -119,9 +119,8 @@ def parse_device_item(**data: dict[str, Any]) -> DeviceItem:
     return conf
 
 
-def parse_network(**data: dict[str, Any]) -> Device:
+def parse_network(**data: dict[str, Any]) -> Network:
     conf = process_config(Network(), **data)
-    keys = data.keys()
 
     return conf
 
@@ -181,7 +180,7 @@ def interpret_number(value: Any) -> int:
 
     return int(value)
 
-def interpret_string(value: Any) -> str:
+def interpret_string(value: Any) -> str | None:
     if not isinstance(value, str):
         raise ValueError(f"Not a valid string: {value}")
     if not value:
