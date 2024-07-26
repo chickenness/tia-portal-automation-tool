@@ -14,6 +14,17 @@ class Config:
 
 
 @dataclass
+class Tag(Config):
+    tag_name: str           = ""
+    data_type: str          = ""
+    logical_address: str    = ""
+
+@dataclass
+class TagTable(Config):
+    name: str               = ""
+    tags: list[Tag]         = field(default_factory=list)
+
+@dataclass
 class DeviceItem(Config):
     """
     Found on 7.16.2 around p. 223
@@ -53,6 +64,7 @@ class Device(Config):
     items: list[DeviceItem] = field(default_factory=list)
     slots_required: int     = 2
     network_address: str    = "192.168.0.112"
+    tag_table: TagTable     = field(default_factory=TagTable)
 
 @dataclass
 class Network(Config):
@@ -124,6 +136,22 @@ def parse_network(**data: dict[str, Any]) -> Network:
 
     return conf
 
+def parse_tag_table(**data: dict[str, Any]) -> TagTable:
+    conf = process_config(TagTable(), **data)
+    keys = data.keys()
+
+    if 'tags' in keys:
+        for tag in data['tags']:
+            value = interpret_tag(tag)
+            conf.tags.append(value)
+
+    return conf
+
+def parse_tag(**data: dict[str, Any]) -> Tag:
+    conf = process_config(Tag(), **data)
+
+    return conf
+
 def parse_device(**data: dict[str, Any]) -> Device:
     conf = process_config(Device(), **data)
     keys = data.keys()
@@ -132,6 +160,9 @@ def parse_device(**data: dict[str, Any]) -> Device:
         for item in data['items']:
             value = interpret_device_item(item)
             conf.items.append(value)
+    if 'tag_table' in keys:
+        value = interpret_tag_table(data['tag_table'])
+        conf.tag_table = value
 
     return conf
 
@@ -217,6 +248,18 @@ def interpret_device_item(value: Any) -> DeviceItem:
         raise ValueError(f"Invalid device item: {value}")
     
     return parse_device_item(**value)
+
+def interpret_tag_table(value: Any) -> TagTable:
+    if not isinstance(value, dict):
+        raise ValueError(f"Invalid Tag Table value: {value}")
+
+    return parse_tag_table(**value)
+
+def interpret_tag(value: Any) -> Tag:
+    if not isinstance(value, dict):
+        raise ValueError(f"Invalid Tag Table value: {value}")
+
+    return parse_tag(**value)
 
 
 def start(**config: dict) -> Config:

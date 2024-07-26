@@ -67,7 +67,10 @@ def create_project(siemens: Siemens, tia: Siemens.Engineering.Tia, name: str, di
 
     return project
 
-def add_devices(project: Siemens.Engineering.Project, devices: list[objects.Device], siemens: Siemens) -> tuple[list[Siemens.Engineering.HW.DeviceImpl], list[Siemens.Engineering.HW.Features.NetworkInterface]]:
+def add_devices(project: Siemens.Engineering.Project,
+                devices: list[objects.Device],
+                siemens: Siemens
+                ) -> tuple[list[Siemens.Engineering.HW.DeviceImpl], list[Siemens.Engineering.HW.Features.NetworkInterface]]:
     hardware: list[Siemens.Engineering.HW.DeviceImpl] = []
     interface: list[Siemens.Engineering.HW.Features.NetworkInterface] = []
     for dev in devices:
@@ -76,6 +79,9 @@ def add_devices(project: Siemens.Engineering.Project, devices: list[objects.Devi
         add_device_items(hw, dev.items, dev.slots_required)
         network_service = assign_device_address(hw, dev.network_address, siemens)
         interface.append(network_service)
+        tag_table = create_tag_table(hw, dev.tag_table, siemens)
+        if isinstance(tag_table, siemens.tia.SW.Tags.PlcTagTable):
+            add_tags(tag_table, dev.tag_table.tags)
 
     return hardware, [i for i in interface if i is not None]
 
@@ -119,6 +125,23 @@ def connect_device_interface(interface: list[Siemens.Engineering.HW.Features.Net
                 interface[n].IoConnectors[0].ConnectToIoSystem(io_system)
             print(f"Connecting to Subnet and IO system: {network[i].subnet_name} <{network[i].io_controller}>")
 
+def create_tag_table(device: Siemens.Engineering.HW.DeviceImpl,
+                     tag_table: objects.TagTable,
+                     siemens: Siemens
+                     ) -> Siemens.Engineering.SW.Tags.PlcTagTable:
+    for device_item in device.DeviceItems:
+        software_container = device_item.GetService[siemens.hwf.SoftwareContainer]()
+        if software_container:
+            software_base = software_container.Software
+            if isinstance(software_base, siemens.tia.SW.PlcSoftware):
+
+                table = software_base.TagTableGroup.TagTables.Create(tag_table.name)
+                return table
+
+def add_tags(table: Siemens.Engineering.SW.Tags.PlcTagTable, tags: list[objects.Tag]) -> None:
+    for tag in tags:
+        table.Tags.Create(tag.tag_name, tag.data_type, tag.logical_address)
+        print(f"Creating tags... {tag.tag_name}")
 
 def parse(path: str) -> dict[str, Union[Siemens, objects.Config]]:
     """
