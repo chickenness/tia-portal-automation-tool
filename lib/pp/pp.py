@@ -5,7 +5,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Union
 import json
-import os
 
 class PPLogger:
     def __init__(self, message: str) -> None:
@@ -26,84 +25,124 @@ class ProjectExistsError(PPError):
     def __repr__(self) -> str:
         return f"ProjectExistsError: {self.err}"
 
-class Siemens:
-    def __init__(self, clr_path: Path) -> Siemens:
-        import clr
-        clr.AddReference(clr_path.as_posix())
+import clr
+from System.IO import DirectoryInfo, FileInfo
 
-        from System.IO import DirectoryInfo, FileInfo
-        import Siemens.Engineering as tia
-        import Siemens.Engineering.Compiler as comp
-        import Siemens.Engineering.HW.Features as hwf
+def import_siemens_module(path: Path):
+    """
+    Imports Siemens modules dynamically based on the provided path.
+    
+    Args:
+        path (str): The path to the Siemens assembly.
+    
+    Returns:
+        tuple: A tuple containing the imported modules.
+    """
+    clr.AddReference('C:\\Program Files\\Siemens\\Automation\\Portal V18\\Bin\\PublicAPI\\Siemens.Engineering.Contract.dll')
+    clr.AddReference(path.as_posix())
+    
+    # Import the Siemens modules
+    import Siemens.Engineering as tia
+    import Siemens.Engineering.Compiler as comp
+    import Siemens.Engineering.HW.Features as hwf
+    
+    return tia, comp, hwf
 
-        self.DirectoryInfo = DirectoryInfo
-        self.FileInfo = FileInfo
-        self.tia = tia
-        self.comp = comp
-        self.hwf = hwf
+tia     = None
+comp    = None
+hwf     = None
 
 
-def create_tia_instance(siemens: Siemens, config: objects.Config) -> Siemens.Engineering.TiaPortal:
-    TIA: Siemens.Engineering.TiaPortal = siemens.tia.TiaPortal()
+def TiaPortal(config: objects.Config) -> Siemens.Engineering.TiaPortal:
     # probs make this part run multithreaded since it hangs the gui process
     conf = config
     if conf.enable_ui:
         print("Starting TIA with UI")
-        TIA = siemens.tia.TiaPortal(siemens.tia.TiaPortalMode.WithUserInterface)
+        TIA = tia.TiaPortal(tia.TiaPortalMode.WithUserInterface)
     else:
         print("Starting TIA without UI")
-        TIA = siemens.tia.TiaPortal(siemens.tia.TiaPortalMode.WithoutUserInterface)
+        TIA = tia.TiaPortal(tia.TiaPortalMode.WithoutUserInterface)
 
     return TIA
 
-def create_project(siemens: Siemens, tia: Siemens.Engineering.Tia, name: str, directory: Path) -> Siemens.Engineering.Project:
-    path = siemens.DirectoryInfo(directory.joinpath(name).as_posix())
-    if path.Exists:
-        raise PPError(f"Failed creating project. Project already exists ({path})")
+def create_project(tia: Siemens.Engineering.Tia, name: str, project_directory: Path) -> Siemens.Engineering.Project:
+    project_path: DirectoryInfo = DirectoryInfo(project_directory.joinpath(name).as_posix())
+    if project_path.Exists:
+        raise PPError(f"Failed creating project. Project already exists ({project_path})")
 
-    directory = siemens.DirectoryInfo(directory.as_posix())
+    project_directory: DirectoryInfo = DirectoryInfo(project_directory.as_posix())
 
-    project = tia.Projects.Create(directory, name)
+    project_composition: Siemens.Engineering.ProjectComposition = tia.Projects
+    project: Siemens.Engineering.Project = project_composition.Create(project_directory, name)
 
     return project
 
 def add_devices(project: Siemens.Engineering.Project,
-                devices: list[objects.Device],
-                siemens: Siemens
+                objects: list[objects.Device],
                 ) -> tuple[list[Siemens.Engineering.HW.DeviceImpl], list[Siemens.Engineering.HW.Features.NetworkInterface]]:
-    hardware: list[Siemens.Engineering.HW.DeviceImpl] = []
+    devices: list[Siemens.Engineering.HW.Device] = []
     interface: list[Siemens.Engineering.HW.Features.NetworkInterface] = []
-    for dev in devices:
-        hw = project.Devices.CreateWithItem(dev.DeviceItemTypeId, dev.DeviceTypeId, dev.DeviceItemName)
-        hardware.append(hw)
-        add_device_items(hw, dev.items, dev.slots_required)
-        network_service = assign_device_address(hw, dev.network_address, siemens)
+    for data in objects:
+        device_composition: Siemens.Engineering.HW.DeviceComposition = project.Devices
+        device: Siemens.Engineering.HW.Device = create_device(device_composition, data)
+        devices.append(device)
+        hw_object: Siemens.Engineering.HW.HardwareObject = device.DeviceItems[0]
+        for data_dev_item in data.items:
+            create_and_plug_device_item(hw_object, data_dev_item, data.slots_required)
+        network_service = assign_device_address(device, data.network_address)
         interface.append(network_service)
-        tag_table = create_tag_table(hw, dev.tag_table, siemens)
-        if isinstance(tag_table, siemens.tia.SW.Tags.PlcTagTable):
-            add_tags(tag_table, dev.tag_table.tags)
 
-    return hardware, [i for i in interface if i is not None]
+        # tag_table = create_tag_table(hw, dev.tag_table, siemens)
+        # if isinstance(tag_table, siemens.tia.SW.Tags.PlcTagTable):
+        #     add_tags(tag_table, dev.tag_table.tags)
 
-def add_device_items( device: Siemens.Engineering.HW.DeviceImpl,
-                     device_items: list[objects.DeviceItem],
-                     slots_required: int
-                     ):
+    return devices, [i for i in interface if i is not None]
+
+def create_device(devices: Siemens.Engineering.HW.DeviceComposition, data: objects.Device) -> Siemens.Engineering.HW.Device:
+    device: Siemens.Engineering.HW.Device = devices.CreateWithItem(data.DeviceItemTypeId, data.DeviceTypeId, data.DeviceItemName)
+
+    return device
+
+def create_and_plug_device_item(hw_object: Siemens.Engineering.HW.HardwareObject,
+                                data: objects.DeviceItem,
+                                slots_required: int
+                                ) -> None:
+    if hw_object.CanPlugNew(data.TypeIdentifier, data.Name, data.PositionNumber + slots_required):
+        hw_object.PlugNew(data.TypeIdentifier, data.Name, data.PositionNumber + slots_required)
+        print(f"{data.TypeIdentifier} PLUGGED on [{data.PositionNumber + slots_required}].")
+
+        return
+
+    print(f"{data.TypeIdentifier} Not PLUGGED on {data.PositionNumber + slots_required}")
+
+def access_device_item_from_device(device: Siemens.Engineering.HW.Device, index: int = 0) -> Siemens.Engineering.HW.DeviceItem:
+    return device.DeviceItems[index]
+
+def access_device_item_from_device_item(device_item: Siemens.Engineering.HW.DeviceItem, index: int = 0) -> Siemens.Engineering.HW.DeviceItem:
+    return device_item.DeviceItems[index]
+
+def access_network_interface_feature(device_item: Siemens.Engineering.HW.DeviceItem) -> Siemens.Engineering.HW.Features.NetworkInterface | None:
+    itf: Siemens.Engineering.HW.Features.NetworkInterface = tia.IEngineeringServiceProvider(device_item).GetService[hwf.NetworkInterface]()
+    if itf:
+        return itf
+
+    return None
+    
+def set_node_attributes(node: Siemens.Engineering.HW.Node, **attributes) -> None:
+    for attribute, value in attributes.items():
+        if node.GetAttribute == attribute:
+            node.SetAttribute(attribute, value)
+
+def assign_device_address(device: Siemens.Engineering.HW.DeviceImpl, address: str) -> list[Siemens.Engineering.HW.Features.NetworkInterface] | None: 
+    device_items = access_device_item_from_device(device, 1).DeviceItems
     for item in device_items:
-        # why is this 0? no idea but it can only use 0 and 1. not sure about 2+ since it returns errors
-        if (device.DeviceItems[0].CanPlugNew(item.TypeIdentifier, item.Name, item.PositionNumber + slots_required)):
-            device.DeviceItems[0].PlugNew(item.TypeIdentifier, item.Name, item.PositionNumber + slots_required)
-            print(f"{item.TypeIdentifier} PLUGGED on [{item.PositionNumber + slots_required}].")
-        else:
-            print(f"{item.TypeIdentifier} Not PLUGGED on {item.PositionNumber + slots_required}")
-
-def assign_device_address(device: Siemens.Engineering.HW.DeviceImpl, address: str, siemens: Siemens) -> list[Siemens.Engineering.HW.Features.NetworkInterface] | None: 
-    items = device.DeviceItems[1].DeviceItems
-    for item in items:
-        network_service = siemens.tia.IEngineeringServiceProvider(item).GetService[siemens.hwf.NetworkInterface]()
-        if type(network_service) is siemens.hwf.NetworkInterface:
-            network_service.Nodes[0].SetAttribute('Address', address)
+        network_service = access_network_interface_feature(item)
+        if type(network_service) is hwf.NetworkInterface:
+            node: Siemens.Engineeering.HW.Node = network_service.Nodes[0]
+            attributes = {"Address" : address}
+            set_node_attributes(node, **attributes)
             print(f"Added a network address: {address}")
+
             return network_service
 
     return None
@@ -143,7 +182,7 @@ def add_tags(table: Siemens.Engineering.SW.Tags.PlcTagTable, tags: list[objects.
         table.Tags.Create(tag.tag_name, tag.data_type, tag.logical_address)
         print(f"Creating tags... {tag.tag_name}")
 
-def parse(path: str) -> dict[str, Union[Siemens, objects.Config]]:
+def parse(path: str) -> objects.Config:
     """
     Initialize TIA Portal config parser with the path to the configuration file
     Loads and process the JSON configuration file into python classes.
@@ -163,11 +202,11 @@ def parse(path: str) -> dict[str, Union[Siemens, objects.Config]]:
         conf: dict = json.load(file)
 
     config: objects.Config = objects.start(**conf)
-    siemens: Siemens = Siemens(config.dll)
 
-    data: dict[str, Union[Siemens, objects.Config]] = {}
-    data['config'] = config
-    data['siemens'] = siemens
+    return config
 
-    return data
-
+def execute(config: objects.Config):
+    portal = TiaPortal(config)
+    project = create_project(portal, config.project.name, config.project.directory)
+    hardware = add_devices(project, config.project.devices)
+    # connect_device_interface(hardware[1], self.config.project.networks)
