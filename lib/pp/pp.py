@@ -77,27 +77,6 @@ def create_project(tia: Siemens.Engineering.Tia, name: str, project_directory: P
 
     return project
 
-def add_devices(project: Siemens.Engineering.Project,
-                objects: list[objects.Device],
-                ) -> tuple[list[Siemens.Engineering.HW.DeviceImpl], list[Siemens.Engineering.HW.Features.NetworkInterface]]:
-    devices: list[Siemens.Engineering.HW.Device] = []
-    interface: list[Siemens.Engineering.HW.Features.NetworkInterface] = []
-    for data in objects:
-        device_composition: Siemens.Engineering.HW.DeviceComposition = project.Devices
-        device: Siemens.Engineering.HW.Device = create_device(device_composition, data)
-        devices.append(device)
-        hw_object: Siemens.Engineering.HW.HardwareObject = device.DeviceItems[0]
-        for data_dev_item in data.items:
-            create_and_plug_device_item(hw_object, data_dev_item, data.slots_required)
-        network_service = assign_device_address(device, data.network_address)
-        interface.append(network_service)
-
-        # tag_table = create_tag_table(hw, dev.tag_table, siemens)
-        # if isinstance(tag_table, siemens.tia.SW.Tags.PlcTagTable):
-        #     add_tags(tag_table, dev.tag_table.tags)
-
-    return devices, [i for i in interface if i is not None]
-
 def create_device(devices: Siemens.Engineering.HW.DeviceComposition, data: objects.Device) -> Siemens.Engineering.HW.Device:
     device: Siemens.Engineering.HW.Device = devices.CreateWithItem(data.DeviceItemTypeId, data.DeviceTypeId, data.DeviceItemName)
 
@@ -128,59 +107,43 @@ def access_network_interface_feature(device_item: Siemens.Engineering.HW.DeviceI
 
     return None
     
+def create_io_system(itf: Siemens.Engineering.HW.Features.NetworkInterface,
+                     data: objects.Network,
+                     ) -> tuple[Siemens.Engineering.HW.Subnet, Siemens.Engineering.HW.IoSystem]:
+    subnet: Siemens.Engineering.HW.Subnet = itf.Nodes[0].CreateAndConnectToSubnet(data.subnet_name)
+    io_system: Siemens.Engineering.HW.IoSystem = itf.IoControllers[0].CreateIoSystem(data.io_controller)
+
+    return (subnet, io_system)
+
+def connect_to_io_system(itf: Siemens.Engineering.HW.Features.NetworkInterface,
+                         subnet: Siemens.Enginerring.HW.Subnet,
+                         io_system: Siemens.Engineering.HW.IoSystem,
+                         ) -> None:
+    itf.Nodes[0].ConnectToSubnet(subnet)
+    if itf.IoConnectors.Count > 0: # why is this a bit shift?
+        itf.IoConnectors[0].ConnectToIoSystem(io_system)
+    
 def set_node_attributes(node: Siemens.Engineering.HW.Node, **attributes) -> None:
     for attribute, value in attributes.items():
+        print(f"    {attribute}:{value}")
         if node.GetAttribute == attribute:
+            print(f"    node attribute has been set ({attribute}:{value})")
             node.SetAttribute(attribute, value)
 
-def assign_device_address(device: Siemens.Engineering.HW.DeviceImpl, address: str) -> list[Siemens.Engineering.HW.Features.NetworkInterface] | None: 
-    device_items = access_device_item_from_device(device, 1).DeviceItems
-    for item in device_items:
-        network_service = access_network_interface_feature(item)
-        if type(network_service) is hwf.NetworkInterface:
-            node: Siemens.Engineeering.HW.Node = network_service.Nodes[0]
-            attributes = {"Address" : address}
-            set_node_attributes(node, **attributes)
-            print(f"Added a network address: {address}")
+def access_software_container(device_item: Siemens.Engineering.HW.DeviceItem) -> Siemens.Engineering.HW.Features.SoftwareContainer | None:
+    software_container: Siemens.Engineering.HW.Features.SoftwareContainer = tia.IEngineeringServiceProvider(device_item).GetService[hwf.SoftwareContainer]()
+    if not software_container:
+        return None
 
-            return network_service
+    return software_container
 
-    return None
+def create_tag_table(software_base: Siemens.Engineering.HW.Software, data: objects.TagTable) -> Siemens.Engineering.SW.Tags.PlcTagTable:
+    return software_base.TagTableGroup.TagTables.Create(data.name)
 
-def connect_device_interface(interface: list[Siemens.Engineering.HW.Features.NetworkInterface], network: list[objects.Network]):
-    subnet = None
-    io_system = None
-    for i in range(len(network)):
-        for n in range(len(interface)):
-            if interface[n].Nodes[0].GetAttribute('Address') != network[i].address:
-                continue
-            if i == 0:
-                subnet = interface[0].Nodes[0].CreateAndConnectToSubnet(network[0].subnet_name)
-                io_system = interface[0].IoControllers[0].CreateIoSystem(network[0].io_controller)
-                print(f"Creating Subnet and IO system: {network[0].subnet_name} <{network[0].io_controller}>")
-                continue
-            interface[n].Nodes[0].ConnectToSubnet(subnet)
-            if (interface[n].IoConnectors.Count) >> 0:
-                interface[n].IoConnectors[0].ConnectToIoSystem(io_system)
-            print(f"Connecting to Subnet and IO system: {network[i].subnet_name} <{network[i].io_controller}>")
+def create_tag(table: Siemens.Engineering.SW.Tags.PlcTagTable, tag: objects.Tag) -> None:
+    table.Tags.Create(tag.tag_name, tag.data_type, tag.logical_address)
+    print(f"Creating tags... {tag.tag_name}")
 
-def create_tag_table(device: Siemens.Engineering.HW.DeviceImpl,
-                     tag_table: objects.TagTable,
-                     siemens: Siemens
-                     ) -> Siemens.Engineering.SW.Tags.PlcTagTable:
-    for device_item in device.DeviceItems:
-        software_container = device_item.GetService[siemens.hwf.SoftwareContainer]()
-        if software_container:
-            software_base = software_container.Software
-            if isinstance(software_base, siemens.tia.SW.PlcSoftware):
-
-                table = software_base.TagTableGroup.TagTables.Create(tag_table.name)
-                return table
-
-def add_tags(table: Siemens.Engineering.SW.Tags.PlcTagTable, tags: list[objects.Tag]) -> None:
-    for tag in tags:
-        table.Tags.Create(tag.tag_name, tag.data_type, tag.logical_address)
-        print(f"Creating tags... {tag.tag_name}")
 
 def parse(path: str) -> objects.Config:
     """
@@ -208,5 +171,52 @@ def parse(path: str) -> objects.Config:
 def execute(config: objects.Config):
     portal = TiaPortal(config)
     project = create_project(portal, config.project.name, config.project.directory)
-    hardware = add_devices(project, config.project.devices)
-    # connect_device_interface(hardware[1], self.config.project.networks)
+
+    devices: list[Siemens.Engineering.HW.Device] = []
+    interfaces: list[Siemens.Engineering.HW.Features.NetworkInterface] = []
+    for data in config.project.devices:
+        device_composition: Siemens.Engineering.HW.DeviceComposition = project.Devices
+        device: Siemens.Engineering.HW.Device = create_device(device_composition, data)
+        devices.append(device)
+        hw_object: Siemens.Engineering.HW.HardwareObject = device.DeviceItems[0]
+        for data_dev_item in data.items:
+            create_and_plug_device_item(hw_object, data_dev_item, data.slots_required)
+        device_items = access_device_item_from_device(device, 1).DeviceItems
+        for item in device_items:
+            network_service = access_network_interface_feature(item)
+            if type(network_service) is hwf.NetworkInterface:
+                node: Siemens.Engineeering.HW.Node = network_service.Nodes[0]
+                attributes = {"Address" : data.network_address}
+                print(node, attributes)
+                # set_node_attributes(node, **attributes)
+                network_service.Nodes[0].SetAttribute('Address', data.network_address)
+                print(f"Added a network address: {data.network_address}")
+                interfaces.append(network_service)
+
+        for device_item in device.DeviceItems:
+            software_container: Siemens.Engineering.HW.Features.SoftwareContainer = access_software_container(device_item)
+            if not software_container:
+                continue
+            software_base: Siemens.Engineering.HW.Software = software_container.Software
+            if not isinstance(software_base, tia.SW.PlcSoftware):
+                continue
+            tag_table = create_tag_table(software_base, data.tag_table)
+            if not isinstance(tag_table, tia.SW.Tags.PlcTagTable):
+                continue
+            for tag in data.tag_table.tags:
+                create_tag(tag_table, tag)
+
+    subnet: Siemens.Engineering.HW.Subnet = None
+    io_system: Siemens.Engineering.HW.IoSystem = None
+    network: list[objects.Network] = config.project.networks
+
+    for i in range(len(network)):
+        for n in range(len(interfaces)):
+            if interfaces[n].Nodes[0].GetAttribute('Address') != network[i].address:
+                continue
+            if i == 0:
+                subnet, io_system = create_io_system(interfaces[0], network[0])
+                print(f"Creating Subnet and IO system: {network[0].subnet_name} <{network[0].io_controller}>")
+                continue
+            connect_to_io_system(interfaces[n], subnet, io_system)
+            print(f"Connecting to Subnet and IO system: {network[i].subnet_name} <{network[i].io_controller}>")
