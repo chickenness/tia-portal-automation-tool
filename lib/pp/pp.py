@@ -120,15 +120,15 @@ def connect_to_io_system(itf: Siemens.Engineering.HW.Features.NetworkInterface,
                          io_system: Siemens.Engineering.HW.IoSystem,
                          ) -> None:
     itf.Nodes[0].ConnectToSubnet(subnet)
-    if itf.IoConnectors.Count > 0: # why is this a bit shift?
+    if itf.IoConnectors.Count > 0:
         itf.IoConnectors[0].ConnectToIoSystem(io_system)
     
 def set_node_attributes(node: Siemens.Engineering.HW.Node, **attributes) -> None:
     for attribute, value in attributes.items():
-        print(f"    {attribute}:{value}")
-        if node.GetAttribute == attribute:
-            print(f"    node attribute has been set ({attribute}:{value})")
-            node.SetAttribute(attribute, value)
+        node_attributes: Siemens.Engineering.EngineeringAttributeInfo = node.GetAttributeInfos()
+        for attrib in node_attributes:
+            if attrib.Name == attribute:
+                node.SetAttribute(attribute, value)
 
 def access_software_container(device_item: Siemens.Engineering.HW.DeviceItem) -> Siemens.Engineering.HW.Features.SoftwareContainer | None:
     software_container: Siemens.Engineering.HW.Features.SoftwareContainer = tia.IEngineeringServiceProvider(device_item).GetService[hwf.SoftwareContainer]()
@@ -188,8 +188,8 @@ def execute(config: objects.Config):
                 node: Siemens.Engineeering.HW.Node = network_service.Nodes[0]
                 attributes = {"Address" : data.network_address}
                 print(node, attributes)
-                # set_node_attributes(node, **attributes)
-                network_service.Nodes[0].SetAttribute('Address', data.network_address)
+                set_node_attributes(node, **attributes)
+                # network_service.Nodes[0].SetAttribute('Address', data.network_address)
                 print(f"Added a network address: {data.network_address}")
                 interfaces.append(network_service)
 
