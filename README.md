@@ -28,13 +28,18 @@ To run, simply `python main.py`.
 
 - [X] Raise Exceptions instead of passing error values
 - [ ] Add more keys
-  - [ ] PLC Tags
-  - [ ] Network addresses
+  - [X] PLC Tags
+  - [X] Network addresses
+  - [ ] Program Blocks
+    - [ ] Global library path
+    - [ ] Master copies
+      - [ ] Source
+      - [ ] Destination
 - [ ] GUI
-  - [X] Proof-of-Concept
+  - ~~[X] Proof-of-Concept~~
   - [ ] Showing the json configs
-  - [X] wx.StaticBox
-  - [X] wx.TreeCtrl
-  - [ ] wx.StyledTextCtrl_2
-  - [ ] Stopping the portal
-- [ ] Multithread? (since the gui hangs when tia portal runs)
+  - ~~[X] wx.StaticBox~~
+  - ~~[X] wx.TreeCtrl~~
+  - ~~[ ] wx.StyledTextCtrl_2~~
+  - ~~[ ] Stopping the portal~~
+- ~~[ ] Multithread? (since the gui hangs when tia portal runs)~~

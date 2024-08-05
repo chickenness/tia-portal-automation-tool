@@ -3,7 +3,6 @@ from __future__ import annotations
 from .modules import objects
 from datetime import datetime
 from pathlib import Path
-from typing import Union
 import json
 
 class PPLogger:
@@ -54,7 +53,6 @@ hwf     = None
 
 
 def TiaPortal(config: objects.Config) -> Siemens.Engineering.TiaPortal:
-    # probs make this part run multithreaded since it hangs the gui process
     conf = config
     if conf.enable_ui:
         print("Starting TIA with UI")
@@ -102,10 +100,10 @@ def access_device_item_from_device_item(device_item: Siemens.Engineering.HW.Devi
 
 def access_network_interface_feature(device_item: Siemens.Engineering.HW.DeviceItem) -> Siemens.Engineering.HW.Features.NetworkInterface | None:
     itf: Siemens.Engineering.HW.Features.NetworkInterface = tia.IEngineeringServiceProvider(device_item).GetService[hwf.NetworkInterface]()
-    if itf:
-        return itf
+    if not itf:
+        return None
 
-    return None
+    return itf
     
 def create_io_system(itf: Siemens.Engineering.HW.Features.NetworkInterface,
                      data: objects.Network,
@@ -126,7 +124,7 @@ def connect_to_io_system(itf: Siemens.Engineering.HW.Features.NetworkInterface,
 def set_node_attributes(node: Siemens.Engineering.HW.Node, **attributes) -> None:
     for attribute, value in attributes.items():
         node_attributes: Siemens.Engineering.EngineeringAttributeInfo = node.GetAttributeInfos()
-        for attrib in node_attributes:
+        for attrib in node_attributes: # we do a lil bit of iteration
             if attrib.Name == attribute:
                 node.SetAttribute(attribute, value)
 
@@ -143,6 +141,29 @@ def create_tag_table(software_base: Siemens.Engineering.HW.Software, data: objec
 def create_tag(table: Siemens.Engineering.SW.Tags.PlcTagTable, tag: objects.Tag) -> None:
     table.Tags.Create(tag.tag_name, tag.data_type, tag.logical_address)
     print(f"Creating tags... {tag.tag_name}")
+
+def query_program_blocks_of_device(plc: Siemens.Engineering.SW.PlcSoftware) -> list[Siemens.Engineering.SW.Blocks.PlcBlocks]:
+    software: Siemens.Engineering.HW.Features.SoftwareContainer = plc.Software
+    if not isinstance(software, tia.SW.PlcSoftware):
+        return []
+
+    return software.BlockGroup.Blocks
+
+
+def enumerate_master_copies_in_system_folder(master_copy_system_folder: Siemens.Engineering.Library.MasterCopies.MasterCopySystemFolder) -> list[Siemens.Engineering.Library.MasterCopies.MasterCopy]:
+    return [master_copy for master_copy in master_copy_system_folder.MasterCopies]
+
+def enumerate_open_libraries(tia: Siemens.Engineering.TiaPortal) -> Siemens.Engineering.Library.GlobalLibrary:
+    return [library for library in tia.GlobalLibraries]
+    
+def open_library(tia: Siemens.Engineering.TiaPortal, file_info: FileInfo, is_read_only: bool = True) -> Siemens.Engineering.Library.GlobalLibrary:
+    if is_read_only:
+        return tia.GlobalLibraries.Open(file_info, tia.OpenMode.ReadWrite) # Write access to the library. Data can be written to the library.
+    return tia.GlobalLibraries.Open(file_info, tia.OpenMode.ReadMode) # Read access to the library. Data can be read from the library.
+
+def create_plc_block_from_mastercopy(plc_software: Siemens.Engineering.HW.Features.SoftwareContainer, master_copy: Siemens.Engineering.MasterCopies.MasterCopy) -> None:
+    plc_software.CreateFrom(master_copy)
+
 
 
 def parse(path: str) -> objects.Config:
@@ -187,9 +208,7 @@ def execute(config: objects.Config):
             if type(network_service) is hwf.NetworkInterface:
                 node: Siemens.Engineeering.HW.Node = network_service.Nodes[0]
                 attributes = {"Address" : data.network_address}
-                print(node, attributes)
                 set_node_attributes(node, **attributes)
-                # network_service.Nodes[0].SetAttribute('Address', data.network_address)
                 print(f"Added a network address: {data.network_address}")
                 interfaces.append(network_service)
 
@@ -220,3 +239,5 @@ def execute(config: objects.Config):
                 continue
             connect_to_io_system(interfaces[n], subnet, io_system)
             print(f"Connecting to Subnet and IO system: {network[i].subnet_name} <{network[i].io_controller}>")
+
+    return portal
