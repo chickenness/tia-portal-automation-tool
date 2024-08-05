@@ -6,7 +6,7 @@ from typing import List, Dict, Any
 @dataclass
 class Config:
     """
-    The keys are based on https://cache.industry.siemens.com/dl/files/163/109477163/att_926042/v1/TIAPortalOpennessenUS_en-US.pdf.
+    The keys are based on https://cache.industry.siemens.com/dl/files/886/109826886/att_1163875/v1/TIAPortalOpenness_enUS_en-US.pdf.
     Adding the key and its type annotation along with its default value should be enough.
     If the said key is another json object, create a new child class Config for it then its functions as well: interpret_class and parse_class.
     """
@@ -73,11 +73,23 @@ class Network(Config):
     io_controller: str      = "PNIO"
 
 @dataclass
+class MasterCopy(Config):
+    name: str               = ""
+    plc_target: str         = ""
+
+@dataclass
+class Library(Config):
+    path: Path                      = Path()
+    read_only: bool                 = True
+    master_copies: list[MasterCopy] = field(default_factory=list)
+
+@dataclass
 class Project(Config):
-    name: str               = "AutomationProject420"
-    directory: Path         = Path.home()
-    devices: list[Device]   = field(default_factory=list)
-    networks: list[Network] = field(default_factory=list)
+    name: str                   = "AutomationProject420"
+    directory: Path             = Path.home()
+    devices: list[Device]       = field(default_factory=list)
+    networks: list[Network]     = field(default_factory=list)
+    libraries: list[Library]    = field(default_factory=list)
 
 @dataclass
 class TIA(Config):
@@ -136,6 +148,22 @@ def parse_network(**data: dict[str, Any]) -> Network:
 
     return conf
 
+def parse_library(**data: dict[str, Any]) -> Library:
+    conf = process_config(Library(), **data)
+    keys=  data.keys()
+
+    if 'master_copies' in keys:
+        for master_copy in data['master_copies']:
+            value = interpret_master_copy(master_copy)
+            conf.master_copies.append(value)
+
+    return conf
+
+def parse_master_copy(**data: dict[str, Any]) -> MasterCopy:
+    conf = process_config(MasterCopy(), **data)
+
+    return conf
+
 def parse_tag_table(**data: dict[str, Any]) -> TagTable:
     conf = process_config(TagTable(), **data)
     keys = data.keys()
@@ -179,6 +207,11 @@ def parse_project(**data: dict[str, Any]) -> Project:
         for network in data['networks']:
             value = interpret_network(network)
             conf.networks.append(value)
+
+    if 'libraries' in keys:
+        for library in data['libraries']:
+            value = interpret_library(library)
+            conf.libraries.append(value)
 
     return conf
 
@@ -242,6 +275,18 @@ def interpret_network(value: Any) -> Network:
         raise ValueError(f"Invalid network configuration: {value}")
 
     return parse_network(**value)
+
+def interpret_library(value: Any) -> Library:
+    if not isinstance(value, dict):
+        raise ValueError(f"Invalid library configuration: {value}")
+
+    return parse_library(**value)
+
+def interpret_master_copy(value: Any) -> MasterCopy:
+    if not isinstance(value, dict):
+        raise ValueError(f"Invalid MasterCopy configuration: {value}")
+
+    return parse_master_copy(**value)
 
 def interpret_device_item(value: Any) -> DeviceItem:
     if not isinstance(value, dict):
