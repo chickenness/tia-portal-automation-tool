@@ -30,11 +30,11 @@ To run, simply `python main.py`.
 - [ ] Add more keys
   - [X] PLC Tags
   - [X] Network addresses
-  - [ ] Program Blocks
-    - [ ] Global library path
-    - [ ] Master copies
-      - [ ] Source
-      - [ ] Destination
+  - [X] Program Blocks
+    - [X] Global library path
+    - [X] Master copies
+      - [X] Source
+      - [X] Destination
 - [ ] GUI
   - ~~[X] Proof-of-Concept~~
   - [ ] Showing the json configs

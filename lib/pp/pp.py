@@ -104,7 +104,34 @@ def access_network_interface_feature(device_item: Siemens.Engineering.HW.DeviceI
         return None
 
     return itf
-    
+
+def access_software_container(device_item: Siemens.Engineering.HW.DeviceItem) -> Siemens.Engineering.SW.PlcSoftware | None:
+    software_container: Siemens.Engineering.SW.PlcSoftware = tia.IEngineeringServiceProvider(device_item).GetService[hwf.SoftwareContainer]()
+    if not software_container:
+        return None
+
+    return software_container
+
+def find_plc_by_name(project: Siemens.Engineering.Project, name: str) -> Siemens.Engineering.HW.Features.SoftwareContainer:
+    devices: Siemens.Engineering.HW.DeviceComposition = project.Devices
+    for device in devices:
+        for device_item in device.DeviceItems:
+            plc: Siemens.Engineering.HW.Features.SoftwareContainer = access_software_container(device_item)
+            if not plc:
+                continue
+            plc_software: Siemens.Engineering.SW.PlcSoftware = plc.Software
+            if not isinstance(plc_software, tia.SW.PlcSoftware):
+                continue
+            if plc_software.Name.lower() == name.lower():
+                return plc_software
+
+def find_master_copy_by_name(library: Siemens.Engineering.Library.GlobalLibrary, name: str) -> Siemens.Engineering.Library.MasterCopies.MasterCopy:
+    system_folder: Siemens.Engineering.Library.MasterCopies.MasterCopySystemFolder = library.MasterCopyFolder
+    mastercopies: Siemens.Engineering.Library.MasterCopies.MasterCopyComposition = system_folder.MasterCopies
+    master_copy: Siemens.Engineering.Library.MasterCopies.MasterCopy = mastercopies.Find(name)
+
+    return master_copy
+
 def create_io_system(itf: Siemens.Engineering.HW.Features.NetworkInterface,
                      data: objects.Network,
                      ) -> tuple[Siemens.Engineering.HW.Subnet, Siemens.Engineering.HW.IoSystem]:
@@ -128,13 +155,6 @@ def set_node_attributes(node: Siemens.Engineering.HW.Node, **attributes) -> None
             if attrib.Name == attribute:
                 node.SetAttribute(attribute, value)
 
-def access_software_container(device_item: Siemens.Engineering.HW.DeviceItem) -> Siemens.Engineering.HW.Features.SoftwareContainer | None:
-    software_container: Siemens.Engineering.HW.Features.SoftwareContainer = tia.IEngineeringServiceProvider(device_item).GetService[hwf.SoftwareContainer]()
-    if not software_container:
-        return None
-
-    return software_container
-
 def create_tag_table(software_base: Siemens.Engineering.HW.Software, data: objects.TagTable) -> Siemens.Engineering.SW.Tags.PlcTagTable:
     return software_base.TagTableGroup.TagTables.Create(data.name)
 
@@ -143,12 +163,11 @@ def create_tag(table: Siemens.Engineering.SW.Tags.PlcTagTable, tag: objects.Tag)
     print(f"Creating tags... {tag.tag_name}")
 
 def query_program_blocks_of_device(plc: Siemens.Engineering.SW.PlcSoftware) -> list[Siemens.Engineering.SW.Blocks.PlcBlocks]:
-    software: Siemens.Engineering.HW.Features.SoftwareContainer = plc.Software
+    software: Siemens.Engineering.SW.PlcSoftware = plc.Software
     if not isinstance(software, tia.SW.PlcSoftware):
         return []
 
     return software.BlockGroup.Blocks
-
 
 def enumerate_master_copies_in_system_folder(master_copy_system_folder: Siemens.Engineering.Library.MasterCopies.MasterCopySystemFolder) -> list[Siemens.Engineering.Library.MasterCopies.MasterCopy]:
     return [master_copy for master_copy in master_copy_system_folder.MasterCopies]
@@ -156,13 +175,17 @@ def enumerate_master_copies_in_system_folder(master_copy_system_folder: Siemens.
 def enumerate_open_libraries(tia: Siemens.Engineering.TiaPortal) -> Siemens.Engineering.Library.GlobalLibrary:
     return [library for library in tia.GlobalLibraries]
     
-def open_library(tia: Siemens.Engineering.TiaPortal, file_info: FileInfo, is_read_only: bool = True) -> Siemens.Engineering.Library.GlobalLibrary:
-    if is_read_only:
-        return tia.GlobalLibraries.Open(file_info, tia.OpenMode.ReadWrite) # Write access to the library. Data can be written to the library.
-    return tia.GlobalLibraries.Open(file_info, tia.OpenMode.ReadMode) # Read access to the library. Data can be read from the library.
+def open_library(portal: Siemens.Engineering.TiaPortal, file_info: FileInfo, is_read_only: bool = True) -> Siemens.Engineering.Library.GlobalLibrary:
+    if not is_read_only:
+        return portal.GlobalLibraries.Open(file_info, tia.OpenMode.ReadWrite) # Write access to the library. Data can be written to the library.
+    return portal.GlobalLibraries.Open(file_info, tia.OpenMode.ReadOnly) # Read access to the library. Data can be read from the library.
 
-def create_plc_block_from_mastercopy(plc_software: Siemens.Engineering.HW.Features.SoftwareContainer, master_copy: Siemens.Engineering.MasterCopies.MasterCopy) -> None:
-    plc_software.CreateFrom(master_copy)
+def create_plc_block_from_mastercopy(plc_block: Siemens.Engineering.SW.Blocks.PlcBlock,
+                                     master_copy: Siemens.Engineering.MasterCopies.MasterCopy
+                                     ) -> None:
+    block = plc_block.CreateFrom(master_copy)
+
+    return block
 
 
 
@@ -239,5 +262,21 @@ def execute(config: objects.Config):
                 continue
             connect_to_io_system(interfaces[n], subnet, io_system)
             print(f"Connecting to Subnet and IO system: {network[i].subnet_name} <{network[i].io_controller}>")
+
+    
+    # Add PLC Blocks from imported Master Copy Library
+    for library in config.project.libraries:
+        print(f"Opening library: {library.path}")
+        lib = open_library(portal, FileInfo(library.path.as_posix()), library.read_only)
+      
+        for master_copy in library.master_copies:
+            print(f"Adding {master_copy.name} to {master_copy.plc_target}...")
+            plc = find_plc_by_name(project, master_copy.plc_target)
+            copy = find_master_copy_by_name(lib, master_copy.name)
+            block = plc.BlockGroup.Blocks
+            
+            copied = create_plc_block_from_mastercopy(block, copy)
+            if copied:
+                print(f"Copied PLC block: {copied.Name}")
 
     return portal
