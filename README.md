@@ -33,8 +33,19 @@ To run, simply `python main.py`.
   - [X] Program Blocks
     - [X] Global library path
     - [X] Master copies
-      - [X] Source
-      - [X] Destination
+      - [ ] Types
+        - [X] PlcBlock
+          - [X] PlcBlock Destination
+          - [X] Master Copy Source
+        - [ ] Device
+          - [ ] Master Copy Source
+        - [ ] DeviceItem
+          - [ ] Device Destination
+          - [ ] Master Copy Source
+        - [ ] Subnet
+          - [ ] Master Copy Source
+        - [ ] DeviceGroup
+          - [ ] Master Copy Source
 - [ ] GUI
   - ~~[X] Proof-of-Concept~~
   - [ ] Showing the json configs

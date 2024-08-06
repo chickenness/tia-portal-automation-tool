@@ -74,8 +74,10 @@ class Network(Config):
 
 @dataclass
 class MasterCopy(Config):
+    object_type: str        = ""
+    source: str             = ""
+    destination: str        = ""
     name: str               = ""
-    plc_target: str         = ""
 
 @dataclass
 class Library(Config):

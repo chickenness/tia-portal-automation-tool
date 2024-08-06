@@ -187,6 +187,33 @@ def create_plc_block_from_mastercopy(plc_block: Siemens.Engineering.SW.Blocks.Pl
 
     return block
 
+def _create_master_copy(project: Siemens.Engineering.Project,
+                        obj_type: str,
+                        source: str,
+                        destination: str,
+                        ) -> Siemens.Engineering.IEngineeringObject | None:
+    match obj_type:
+        case "PlcBlock":
+            plc = find_plc_by_name(project, destination)
+            if destination:
+                block = plc.BlockGroup.Blocks
+                return create_plc_block_from_mastercopy(block, source)
+
+        case "Device":
+            return
+
+        case "DeviceItem":
+            return
+
+        case "DeviceGroup":
+            return
+
+        case "Subnet":
+            return
+
+        case _:
+            return None
+
 
 
 def parse(path: str) -> objects.Config:
@@ -270,13 +297,15 @@ def execute(config: objects.Config):
         lib = open_library(portal, FileInfo(library.path.as_posix()), library.read_only)
       
         for master_copy in library.master_copies:
-            print(f"Adding {master_copy.name} to {master_copy.plc_target}...")
-            plc = find_plc_by_name(project, master_copy.plc_target)
-            copy = find_master_copy_by_name(lib, master_copy.name)
-            block = plc.BlockGroup.Blocks
-            
-            copied = create_plc_block_from_mastercopy(block, copy)
+            print(f"Adding {master_copy.source} to {master_copy.destination}...")
+            source = find_master_copy_by_name(lib, master_copy.source)
+
+            copied = _create_master_copy(project, master_copy.object_type,
+                                         source, master_copy.destination)
+
+            attrs = {"Name": master_copy.name}
             if copied:
+                set_object_attributes(copied, **attrs)
                 print(f"Copied PLC block: {copied.Name}")
 
     return portal
