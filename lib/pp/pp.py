@@ -148,12 +148,12 @@ def connect_to_io_system(itf: Siemens.Engineering.HW.Features.NetworkInterface,
     if itf.IoConnectors.Count > 0:
         itf.IoConnectors[0].ConnectToIoSystem(io_system)
     
-def set_node_attributes(node: Siemens.Engineering.HW.Node, **attributes) -> None:
+def set_object_attributes(obj: Siemens.Engineering.IEngineeringObject, **attributes) -> None:
     for attribute, value in attributes.items():
-        node_attributes: Siemens.Engineering.EngineeringAttributeInfo = node.GetAttributeInfos()
-        for attrib in node_attributes: # we do a lil bit of iteration
+        obj_attrs: Siemens.Engineering.EngineeringAttributeInfo = obj.GetAttributeInfos()
+        for attrib in obj_attrs: # we do a lil bit of iteration
             if attrib.Name == attribute:
-                node.SetAttribute(attribute, value)
+                obj.SetAttribute(attribute, value)
 
 def create_tag_table(software_base: Siemens.Engineering.HW.Software, data: objects.TagTable) -> Siemens.Engineering.SW.Tags.PlcTagTable:
     return software_base.TagTableGroup.TagTables.Create(data.name)
@@ -231,7 +231,7 @@ def execute(config: objects.Config):
             if type(network_service) is hwf.NetworkInterface:
                 node: Siemens.Engineeering.HW.Node = network_service.Nodes[0]
                 attributes = {"Address" : data.network_address}
-                set_node_attributes(node, **attributes)
+                set_object_attributes(node, **attributes)
                 print(f"Added a network address: {data.network_address}")
                 interfaces.append(network_service)
 
