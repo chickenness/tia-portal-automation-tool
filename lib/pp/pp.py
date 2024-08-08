@@ -191,28 +191,43 @@ def _create_master_copy(project: Siemens.Engineering.Project,
                         obj_type: str,
                         source: str,
                         destination: str,
-                        ) -> Siemens.Engineering.IEngineeringObject | None:
-    match obj_type:
-        case "PlcBlock":
-            plc = find_plc_by_name(project, destination)
-            if destination:
-                block = plc.BlockGroup.Blocks
-                return create_plc_block_from_mastercopy(block, source)
+                        name: str,
+                        instances: int = 1,
+                        ) -> list[Siemens.Engineering.IEngineeringObject]:
+    if instances < 1:
+        return []
 
-        case "Device":
-            return
+    copies: list[Siemens.Engineering.IEngineeringObject] = []
 
-        case "DeviceItem":
-            return
+    for i in range(instances):
+        match obj_type:
+            case "PlcBlock":
+                plc = find_plc_by_name(project, destination)
+                if destination:
+                    block = plc.BlockGroup.Blocks
+                    master_copy = create_plc_block_from_mastercopy(block, source)
+                    
+                    attrs = {"Name": f"{name}_{i}"}
+                    set_object_attributes(master_copy, **attrs)
 
-        case "DeviceGroup":
-            return
+                    copies.append(master_copy)
 
-        case "Subnet":
-            return
+            case "Device":
+                pass
 
-        case _:
-            return None
+            case "DeviceItem":
+                pass
+
+            case "DeviceGroup":
+                pass
+
+            case "Subnet":
+                pass
+
+            case _:
+                pass
+
+    return copies
 
 
 
@@ -300,12 +315,12 @@ def execute(config: objects.Config):
             print(f"Adding {master_copy.source} to {master_copy.destination}...")
             source = find_master_copy_by_name(lib, master_copy.source)
 
-            copied = _create_master_copy(project, master_copy.object_type,
-                                         source, master_copy.destination)
+            copies = _create_master_copy(project, master_copy.object_type,
+                                         source, master_copy.destination,
+                                         master_copy.name, master_copy.instances)
 
-            attrs = {"Name": master_copy.name}
-            if copied:
-                set_object_attributes(copied, **attrs)
-                print(f"Copied PLC block: {copied.Name}")
+            if copies:
+                for copy in copies:
+                    print(f"Copied PLC block: {copy.Name}")
 
     return portal

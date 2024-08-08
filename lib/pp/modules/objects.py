@@ -78,6 +78,7 @@ class MasterCopy(Config):
     source: str             = ""
     destination: str        = ""
     name: str               = ""
+    instances: int          = 1
 
 @dataclass
 class Library(Config):

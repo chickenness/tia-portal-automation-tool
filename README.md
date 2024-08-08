@@ -46,6 +46,7 @@ To run, simply `python main.py`.
           - [ ] Master Copy Source
         - [ ] DeviceGroup
           - [ ] Master Copy Source
+- [ ] Fix Contract Reference
 - [ ] GUI
   - ~~[X] Proof-of-Concept~~
   - [ ] Showing the json configs
