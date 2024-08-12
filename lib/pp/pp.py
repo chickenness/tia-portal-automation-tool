@@ -63,15 +63,15 @@ def TiaPortal(config: objects.Config) -> Siemens.Engineering.TiaPortal:
 
     return TIA
 
-def create_project(tia: Siemens.Engineering.Tia, name: str, project_directory: Path) -> Siemens.Engineering.Project:
+def create_project(tia: Siemens.Engineering.TiaPortal, name: str, project_directory: Path) -> Siemens.Engineering.Project:
     project_path: DirectoryInfo = DirectoryInfo(project_directory.joinpath(name).as_posix())
     if project_path.Exists:
         raise PPError(f"Failed creating project. Project already exists ({project_path})")
 
-    project_directory: DirectoryInfo = DirectoryInfo(project_directory.as_posix())
+    new_project_directory: DirectoryInfo = DirectoryInfo(project_directory.as_posix())
 
     project_composition: Siemens.Engineering.ProjectComposition = tia.Projects
-    project: Siemens.Engineering.Project = project_composition.Create(project_directory, name)
+    project: Siemens.Engineering.Project = project_composition.Create(new_project_directory, name)
 
     return project
 
@@ -187,47 +187,6 @@ def create_plc_block_from_mastercopy(plc_block: Siemens.Engineering.SW.Blocks.Pl
 
     return block
 
-def _create_master_copy(project: Siemens.Engineering.Project,
-                        obj_type: str,
-                        source: str,
-                        destination: str,
-                        name: str,
-                        instances: int = 1,
-                        ) -> list[Siemens.Engineering.IEngineeringObject]:
-    if instances < 1:
-        return []
-
-    copies: list[Siemens.Engineering.IEngineeringObject] = []
-
-    for i in range(instances):
-        match obj_type:
-            case "PlcBlock":
-                plc = find_plc_by_name(project, destination)
-                if destination:
-                    block = plc.BlockGroup.Blocks
-                    master_copy = create_plc_block_from_mastercopy(block, source)
-                    
-                    attrs = {"Name": f"{name}_{i}"}
-                    set_object_attributes(master_copy, **attrs)
-
-                    copies.append(master_copy)
-
-            case "Device":
-                pass
-
-            case "DeviceItem":
-                pass
-
-            case "DeviceGroup":
-                pass
-
-            case "Subnet":
-                pass
-
-            case _:
-                pass
-
-    return copies
 
 
 
@@ -315,12 +274,15 @@ def execute(config: objects.Config):
             print(f"Adding {master_copy.source} to {master_copy.destination}...")
             source = find_master_copy_by_name(lib, master_copy.source)
 
-            copies = _create_master_copy(project, master_copy.object_type,
-                                         source, master_copy.destination,
-                                         master_copy.name, master_copy.instances)
+            plc = find_plc_by_name(project, master_copy.destination)
+            if not plc:
+                continue
+            block = plc.BlockGroup.Blocks
+            copy = create_plc_block_from_mastercopy(block, source)
+            attrs = {"Name": master_copy.name}
+            set_object_attributes(copy, **attrs)
 
-            if copies:
-                for copy in copies:
-                    print(f"Copied PLC block: {copy.Name}")
+            if copy:
+                print(f"Copied PLC block: {copy.Name}")
 
     return portal
