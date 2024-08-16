@@ -31,6 +31,15 @@ To run, simply `python main.py`.
   - [X] PLC Tags
   - [X] Network addresses
   - [X] Program Blocks
+    - [ ] Instances
+      - [x] Compile PlcBlock
+      - [ ] Export PlcBlock as XML
+        - [ ] Export Path as FileInfo
+        - [ ] Export Options as Siemens.Engineering.ExportOptions
+      - [ ] Add Function Blocks to Organization Block (PlcBlock) thru XML
+      - [ ] Import PlcBlock as XML
+        - [ ] Import Path as FileInfo
+        - [ ] Import Options as Siemens.Engineering.ImportOptions
     - [X] Global library path
     - [X] Master copies
       - [ ] Types
@@ -46,7 +55,7 @@ To run, simply `python main.py`.
           - [ ] Master Copy Source
         - [ ] DeviceGroup
           - [ ] Master Copy Source
-- [ ] Fix Contract Reference
+- [ ] Fix Contract Reference DLL
 - [ ] GUI
   - ~~[X] Proof-of-Concept~~
   - [ ] Showing the json configs

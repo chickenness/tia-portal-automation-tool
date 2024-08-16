@@ -92,6 +92,29 @@ def create_and_plug_device_item(hw_object: Siemens.Engineering.HW.HardwareObject
 
     print(f"{data.TypeIdentifier} Not PLUGGED on {data.PositionNumber + slots_required}")
 
+def create_plc_block_from_mastercopy(plc_block: Siemens.Engineering.SW.Blocks.PlcBlock,
+                                     master_copy: Siemens.Engineering.MasterCopies.MasterCopy
+                                     ) -> None:
+    block = plc_block.CreateFrom(master_copy)
+
+    return block
+
+def create_io_system(itf: Siemens.Engineering.HW.Features.NetworkInterface,
+                     data: objects.Network,
+                     ) -> tuple[Siemens.Engineering.HW.Subnet, Siemens.Engineering.HW.IoSystem]:
+    subnet: Siemens.Engineering.HW.Subnet = itf.Nodes[0].CreateAndConnectToSubnet(data.subnet_name)
+    io_system: Siemens.Engineering.HW.IoSystem = itf.IoControllers[0].CreateIoSystem(data.io_controller)
+
+    return (subnet, io_system)
+
+
+def create_tag_table(software_base: Siemens.Engineering.HW.Software, data: objects.TagTable) -> Siemens.Engineering.SW.Tags.PlcTagTable:
+    return software_base.TagTableGroup.TagTables.Create(data.name)
+
+def create_tag(table: Siemens.Engineering.SW.Tags.PlcTagTable, tag: objects.Tag) -> None:
+    table.Tags.Create(tag.tag_name, tag.data_type, tag.logical_address)
+    print(f"Creating tags... {tag.tag_name}")
+
 def access_device_item_from_device(device: Siemens.Engineering.HW.Device, index: int = 0) -> Siemens.Engineering.HW.DeviceItem:
     return device.DeviceItems[index]
 
@@ -132,14 +155,6 @@ def find_master_copy_by_name(library: Siemens.Engineering.Library.GlobalLibrary,
 
     return master_copy
 
-def create_io_system(itf: Siemens.Engineering.HW.Features.NetworkInterface,
-                     data: objects.Network,
-                     ) -> tuple[Siemens.Engineering.HW.Subnet, Siemens.Engineering.HW.IoSystem]:
-    subnet: Siemens.Engineering.HW.Subnet = itf.Nodes[0].CreateAndConnectToSubnet(data.subnet_name)
-    io_system: Siemens.Engineering.HW.IoSystem = itf.IoControllers[0].CreateIoSystem(data.io_controller)
-
-    return (subnet, io_system)
-
 def connect_to_io_system(itf: Siemens.Engineering.HW.Features.NetworkInterface,
                          subnet: Siemens.Enginerring.HW.Subnet,
                          io_system: Siemens.Engineering.HW.IoSystem,
@@ -154,13 +169,6 @@ def set_object_attributes(obj: Siemens.Engineering.IEngineeringObject, **attribu
         for attrib in obj_attrs: # we do a lil bit of iteration
             if attrib.Name == attribute:
                 obj.SetAttribute(attribute, value)
-
-def create_tag_table(software_base: Siemens.Engineering.HW.Software, data: objects.TagTable) -> Siemens.Engineering.SW.Tags.PlcTagTable:
-    return software_base.TagTableGroup.TagTables.Create(data.name)
-
-def create_tag(table: Siemens.Engineering.SW.Tags.PlcTagTable, tag: objects.Tag) -> None:
-    table.Tags.Create(tag.tag_name, tag.data_type, tag.logical_address)
-    print(f"Creating tags... {tag.tag_name}")
 
 def query_program_blocks_of_device(plc: Siemens.Engineering.SW.PlcSoftware) -> list[Siemens.Engineering.SW.Blocks.PlcBlocks]:
     software: Siemens.Engineering.SW.PlcSoftware = plc.Software
@@ -180,12 +188,11 @@ def open_library(portal: Siemens.Engineering.TiaPortal, file_info: FileInfo, is_
         return portal.GlobalLibraries.Open(file_info, tia.OpenMode.ReadWrite) # Write access to the library. Data can be written to the library.
     return portal.GlobalLibraries.Open(file_info, tia.OpenMode.ReadOnly) # Read access to the library. Data can be read from the library.
 
-def create_plc_block_from_mastercopy(plc_block: Siemens.Engineering.SW.Blocks.PlcBlock,
-                                     master_copy: Siemens.Engineering.MasterCopies.MasterCopy
-                                     ) -> None:
-    block = plc_block.CreateFrom(master_copy)
+def compile_block(block: Siemens.Engineering.SW.Blocks.PlcBlock) -> Siemens.Engineering.Compiler.CompilerResult:
+    single_compile: Siemens.Engineering.Compiler.ICompilable = block.GetService[tia.Compiler.ICompilable]();
+    result: Siemens.Engineering.Compiler.CompilerResult = single_compile.Compile()
 
-    return block
+    return result
 
 
 
