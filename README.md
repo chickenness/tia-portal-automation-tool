@@ -35,11 +35,9 @@ To run, simply `python main.py`.
       - [X] Compile PlcBlock
       - [X] Export PlcBlock as XML
         - [X] Export Path as FileInfo
-        - [X] Export Options as Siemens.Engineering.ExportOptions
       - [ ] Add Function Blocks to Organization Block (PlcBlock) thru XML
-      - [ ] Import PlcBlock as XML
-        - [ ] Import Path as FileInfo
-        - [ ] Import Options as Siemens.Engineering.ImportOptions
+      - [X] Import PlcBlock as XML
+        - [X] Import Path as FileInfo
     - [X] Global library path
     - [X] Master copies
       - [ ] Types

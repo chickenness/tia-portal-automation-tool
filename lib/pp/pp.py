@@ -210,6 +210,15 @@ def export_block_as_xml(block: Siemens.Engineering.SW.Blocks.PlcBlock,
 
     block.Export(file_path, export_options)
 
+    return
+
+def import_xml_block(blocks: Siemens.Engineering.SW.Blocks.PlcBlockComposition,
+                     xml: FileInfo,
+                     ) -> None:
+    blocks.Import(xml, tia.ImportOptions.Override)
+
+    return
+
 
 
 
