@@ -194,6 +194,24 @@ def compile_block(block: Siemens.Engineering.SW.Blocks.PlcBlock) -> Siemens.Engi
 
     return result
 
+def export_block_as_xml(block: Siemens.Engineering.SW.Blocks.PlcBlock,
+                        directory: Path,
+                        ) -> None:
+    if not directory.exists():
+        raise PPError(f"Directory does not exist: {directory}")
+    if not directory.is_dir():
+        raise PPError(f"Path is not a directory: {directory}")
+
+    file_path: FileInfo = FileInfo(f"{directory.as_posix()}/{block.Name}.xml")
+    if file_path.Exists:
+        raise PPError(f"File already exists: {file_path}")
+
+    export_options: Siemens.Engineering.ExportOptions = tia.ExportOptions.WithReadOnly | tia.ExportOptions.WithDefaults   
+
+    block.Export(file_path, export_options)
+
+
+
 
 
 

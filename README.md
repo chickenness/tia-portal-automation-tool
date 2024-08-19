@@ -32,10 +32,10 @@ To run, simply `python main.py`.
   - [X] Network addresses
   - [X] Program Blocks
     - [ ] Instances
-      - [x] Compile PlcBlock
-      - [ ] Export PlcBlock as XML
-        - [ ] Export Path as FileInfo
-        - [ ] Export Options as Siemens.Engineering.ExportOptions
+      - [X] Compile PlcBlock
+      - [X] Export PlcBlock as XML
+        - [X] Export Path as FileInfo
+        - [X] Export Options as Siemens.Engineering.ExportOptions
       - [ ] Add Function Blocks to Organization Block (PlcBlock) thru XML
       - [ ] Import PlcBlock as XML
         - [ ] Import Path as FileInfo
