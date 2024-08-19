@@ -36,6 +36,8 @@ To run, simply `python main.py`.
       - [X] Export PlcBlock as XML
         - [X] Export Path as FileInfo
       - [ ] Add Function Blocks to Organization Block (PlcBlock) thru XML
+        - [X] Read "./SW.Blocks.OB/ObjectList/"
+        - [ ] Add new "SW.Blocks.CompileUnit" into the ObjectList
       - [X] Import PlcBlock as XML
         - [X] Import Path as FileInfo
     - [X] Global library path
