@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from .modules import objects
+from .xml import OrganizationalBlock as OB
 from datetime import datetime
 from pathlib import Path
 import json
