@@ -71,6 +71,8 @@ def build_sw_blocks_compile_unit(data: SWBlocksCompileUnit) -> str:
     return xml['SW.Blocks.CompileUnit'].substitute(ID=data.Id, PARTS=parts, WIRES=wires, PROGRAMMING_LANGUAGE=data.ProgrammingLanguage)
 
 def build_call(data: Call) -> str:
+    if data.Uid >= 2 and data.Uid < 123:
+        raise ValueError(f"UID Value must be within range: 1; 123-32767. {data.Uid} is not valid.")
 
     return xml['Call'].substitute(UID=data.Uid, NAME=data.Name, BLOCK_TYPE=data.BlockType, BLOCK_NUMBER=data.BlockNumber, INSTANCE_UID=data.InstanceUid,
                                   COMPONENT_NAME=data.ComponentName, DB_TYPE=data.DatabaseType, DB_BLOCK_NUMBER=data.DatabaseBlockNumber)
