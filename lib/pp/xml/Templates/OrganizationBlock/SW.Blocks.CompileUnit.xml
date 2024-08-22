@@ -4,7 +4,7 @@
 			<FlgNet
 				xmlns="http://www.siemens.com/automation/Openness/SW/NetworkSource/FlgNet/v4">
 				<Parts>
-				  $PARTS
+					$PARTS
 				</Parts>
 				<Wires>
 					$WIRES

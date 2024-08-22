@@ -19,7 +19,7 @@
 					</MultilingualTextItem>
 				</ObjectList>
 			</MultilingualText>
-				$BLOCKS
+			$BLOCKS
 			<MultilingualText ID="D" CompositionName="Title">
 				<ObjectList>
 					<MultilingualTextItem ID="E" CompositionName="Items">
