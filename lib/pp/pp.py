@@ -108,7 +108,6 @@ def create_io_system(itf: Siemens.Engineering.HW.Features.NetworkInterface,
 
     return (subnet, io_system)
 
-
 def create_tag_table(software_base: Siemens.Engineering.HW.Software, data: objects.TagTable) -> Siemens.Engineering.SW.Tags.PlcTagTable:
     return software_base.TagTableGroup.TagTables.Create(data.name)
 
@@ -220,10 +219,15 @@ def import_xml_block(blocks: Siemens.Engineering.SW.Blocks.PlcBlockComposition,
 
     return
 
+def create_instance_db(plc: Siemens.Engineering.HW.Features.SoftwareContainer, name: str,
+                       number: int, instance_of_name: str) -> Siemens.Engineering.SW.Blocks.InstanceDB:
+    blocks: Siemens.Engineering.SW.Blocks.PlcBlockComposition = plc.BlockGroup.Blocks
+    for block in blocks:
+        if name == block.Name:
+            raise PPError(f"The block name '{name}' is invalid. An object with this name or this number already exists.")
+    instance_db = blocks.CreateInstanceDB(name, True, number, instance_of_name)
 
-
-
-
+    return instance_db
 
 def parse(path: str) -> objects.Config:
     """
@@ -319,5 +323,17 @@ def execute(config: objects.Config):
 
             if copy:
                 print(f"Copied PLC block: {copy.Name}")
+
+    for library in config.project.libraries:
+        lib = open_library(portal, FileInfo(library.path.as_posix()), library.read_only)
+        for instance in library.instances:
+            source = find_master_copy_by_name(lib, instance.source)
+            plc = find_plc_by_name(project, instance.destination)
+            if not plc:
+                continue
+            block = plc.BlockGroup.Blocks
+            copy = create_plc_block_from_mastercopy(block, source)
+            attrs = {"Name": instance.name}
+            set_object_attributes(copy, **attrs)
 
     return portal
