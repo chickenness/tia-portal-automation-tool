@@ -39,6 +39,11 @@ class WireB:
     EnUid: int
     EnoUid: int
 
+@dataclass
+class MultilingualText:
+    Id: int
+    ItemId: int
+
 
 TEMPLATE_DIRECTORY: Path    = Path("./lib/pp/xml/Templates/OrganizationBlock/")
 TEMPLATES: list[Path]       = [template for template in TEMPLATE_DIRECTORY.iterdir() if template.is_file()] 
@@ -82,3 +87,6 @@ def build_wire_a(data: WireA) -> str:
 
 def build_wire_b(data: WireB) -> str:
     return xml['Wire_b'].substitute(UID=data.Uid, EN_UID=data.EnUid, ENO_UID=data.EnoUid)
+
+def build_multilingual_text(data: MultilingualText) -> str:
+    return xml['MultilingualText'].substitute(MULTILINGUAL_TEXT_ID=data.Id, MULTILINGUAL_TEXT_ITEM_ID=data.ItemId)
