@@ -3,7 +3,7 @@
 		<IntegerAttribute Name="BlockNumber" Informative="true">$BLOCK_NUMBER</IntegerAttribute>
 		<Instance Scope="GlobalVariable" UId="$INSTANCE_UID">
 			<Component Name="$COMPONENT_NAME" />
-			<Address Area="DB" Type="$DB_TYPE" BlockNumber="$DB_BLOCK_NUMBER" BitOffset="0" Informative="true" />
+			<Address Area="DB" Type="$DB_TYPE" BlockNumber="$DB_NUMBER" BitOffset="0" Informative="true" />
 		</Instance>
 	</CallInfo>
 </Call>

@@ -20,16 +20,7 @@
 				</ObjectList>
 			</MultilingualText>
 			$BLOCKS
-			<MultilingualText ID="D" CompositionName="Title">
-				<ObjectList>
-					<MultilingualTextItem ID="E" CompositionName="Items">
-						<AttributeList>
-							<Culture>en-US</Culture>
-							<Text>"Main Program Sweep (Cycle)"</Text>
-						</AttributeList>
-					</MultilingualTextItem>
-				</ObjectList>
-			</MultilingualText>
+			$MULTILINGUAL_TEXT
 		</ObjectList>
 	</SW.Blocks.OB>
 </Document>
