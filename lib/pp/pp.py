@@ -38,8 +38,9 @@ def import_siemens_module(path: Path):
     Returns:
         tuple: A tuple containing the imported modules.
     """
-    clr.AddReference('C:\\Program Files\\Siemens\\Automation\\Portal V18\\Bin\\PublicAPI\\Siemens.Engineering.Contract.dll')
-    clr.AddReference(path.as_posix())
+    contract_path: Path = Path(path.parent.parent.parent.joinpath(r"Bin/PublicAPI/Siemens.Engineering.Contract.dll"))
+    clr.AddReference(contract_path.as_posix()) # C:\\Program Files\\Siemens\\Automation\\Portal V18\\Bin\\PublicAPI\\Siemens.Engineering.Contract.dll
+    clr.AddReference(path.as_posix()) # C:/Program Files/Siemens/Automation/Portal V18/PublicAPI/V18/Siemens.Engineering.dll
     
     # Import the Siemens modules
     import Siemens.Engineering as tia
