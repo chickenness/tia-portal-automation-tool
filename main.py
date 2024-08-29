@@ -1,5 +1,8 @@
 from lib.pp import pp
 from gui import MenuBar, FileDialog, Notebook
+from pathlib import Path
+import tempfile
+import uuid
 import wx
 
 
@@ -134,6 +137,17 @@ class MainWindow(wx.Frame):
                 dbs.append(db.Name)
 
             xml = pp.OB.generate("Main", 1, "LAD", fbs, dbs)
+
+            plc = pp.find_plc_by_name(project, library.instances[0].destination)
+            blocks = plc.BlockGroup.Blocks 
+
+            filename = uuid.uuid4().hex
+            path = Path(tempfile.gettempdir()).joinpath(filename)
+
+            with open(path, 'w') as file:
+                file.write(xml)
+
+            pp.import_xml_block(blocks, pp.FileInfo(path.as_posix()))
 
 
     def OnExit(self, e):

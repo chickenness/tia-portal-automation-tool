@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 import json
 
+
 class PPLogger:
     def __init__(self, message: str) -> None:
         self.message: str = message
