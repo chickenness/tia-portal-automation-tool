@@ -1,0 +1,4 @@
+<Wire UId="$UID">
+	<Powerrail />
+	<NameCon UId="$EN_UID" Name="en" />
+</Wire>

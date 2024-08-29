@@ -57,49 +57,55 @@ class Device(Config):
     |--------------------|--------|--------------------------------------------|
     """
 
-    DeviceItemTypeId: str   = "OrderNumber:6ES7 510-1DJ01-0AB0/V2.0"
-    DeviceTypeId: str       = "PLC_1"
-    DeviceItemName: str     = "NewDevice"
-    DeviceName: str         = ""
-    items: list[DeviceItem] = field(default_factory=list)
-    slots_required: int     = 2
-    network_address: str    = "192.168.0.112"
-    tag_table: TagTable     = field(default_factory=TagTable)
+    DeviceItemTypeId: str               = "OrderNumber:6ES7 510-1DJ01-0AB0/V2.0"
+    DeviceTypeId: str                   = "PLC_1"
+    DeviceItemName: str                 = "NewDevice"
+    DeviceName: str                     = ""
+    items: list[DeviceItem]             = field(default_factory=list)
+    slots_required: int                 = 2
+    network_address: str                = "192.168.0.112"
+    tag_table: TagTable                 = field(default_factory=TagTable)
 
 @dataclass
 class Network(Config):
-    address: str            = "192.168.0.112"
-    subnet_name: str        = "Profinet"
-    io_controller: str      = "PNIO"
+    address: str                        = "192.168.0.112"
+    subnet_name: str                    = "Profinet"
+    io_controller: str                  = "PNIO"
 
 @dataclass
 class MasterCopy(Config):
-    object_type: str        = ""
-    source: str             = ""
-    destination: str        = ""
-    name: str               = ""
+    block_type: str                     = ""
+    source: str                         = ""
+    destination: str                    = ""
+    name: str                           = ""
+
+@dataclass
+class MasterCopyInstance(MasterCopy):
+    organization_block: str             = ""
+    network_slot: int                   = 0
 
 @dataclass
 class Library(Config):
-    path: Path                      = Path()
-    read_only: bool                 = True
-    master_copies: list[MasterCopy] = field(default_factory=list)
+    path: Path                          = Path()
+    read_only: bool                     = True
+    master_copies: list[MasterCopy]     = field(default_factory=list)
+    instances: list[MasterCopyInstance] = field(default_factory=list)
 
 @dataclass
 class Project(Config):
-    name: str                   = "AutomationProject420"
-    directory: Path             = Path.home()
-    devices: list[Device]       = field(default_factory=list)
-    networks: list[Network]     = field(default_factory=list)
-    libraries: list[Library]    = field(default_factory=list)
+    name: str                           = "AutomationProject420"
+    directory: Path                     = Path.home()
+    devices: list[Device]               = field(default_factory=list)
+    networks: list[Network]             = field(default_factory=list)
+    libraries: list[Library]            = field(default_factory=list)
 
 @dataclass
 class TIA(Config):
-    version: int            = 18
-    filename: str           = "Siemens.Engineering.dll"
-    dll: Path               = field(init=False)
-    enable_ui: bool         = True
-    project: Config         = field(default_factory=Project)
+    version: int                        = 18
+    filename: str                       = "Siemens.Engineering.dll"
+    dll: Path                           = field(init=False)
+    enable_ui: bool                     = True
+    project: Config                     = field(default_factory=Project)
 
     def __post_init__(self):
         self.dll = Path(rf"C:/Program Files/Siemens/Automation/Portal V{self.version}/PublicAPI/V{self.version}/{self.filename}")
@@ -159,10 +165,20 @@ def parse_library(**data: dict[str, Any]) -> Library:
             value = interpret_master_copy(master_copy)
             conf.master_copies.append(value)
 
+    if 'instances' in keys:
+        for master_copy in data['instances']:
+            value = interpret_master_copy_instance(master_copy)
+            conf.instances.append(value)
+
     return conf
 
 def parse_master_copy(**data: dict[str, Any]) -> MasterCopy:
     conf = process_config(MasterCopy(), **data)
+
+    return conf
+
+def parse_master_copy_instance(**data: dict[str, Any]) -> MasterCopyInstance:
+    conf = process_config(MasterCopyInstance(), **data)
 
     return conf
 
@@ -289,6 +305,12 @@ def interpret_master_copy(value: Any) -> MasterCopy:
         raise ValueError(f"Invalid MasterCopy configuration: {value}")
 
     return parse_master_copy(**value)
+
+def interpret_master_copy_instance(value: Any) -> MasterCopyInstance:
+    if not isinstance(value, dict):
+        raise ValueError(f"Invalid MasterCopy Instance configuration: {value}")
+
+    return parse_master_copy_instance(**value)
 
 def interpret_device_item(value: Any) -> DeviceItem:
     if not isinstance(value, dict):

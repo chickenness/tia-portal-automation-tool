@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from .modules import objects
+from .xml import OrganizationBlock as OB
 from datetime import datetime
 from pathlib import Path
 import json
@@ -63,15 +64,15 @@ def TiaPortal(config: objects.Config) -> Siemens.Engineering.TiaPortal:
 
     return TIA
 
-def create_project(tia: Siemens.Engineering.Tia, name: str, project_directory: Path) -> Siemens.Engineering.Project:
+def create_project(tia: Siemens.Engineering.TiaPortal, name: str, project_directory: Path) -> Siemens.Engineering.Project:
     project_path: DirectoryInfo = DirectoryInfo(project_directory.joinpath(name).as_posix())
     if project_path.Exists:
         raise PPError(f"Failed creating project. Project already exists ({project_path})")
 
-    project_directory: DirectoryInfo = DirectoryInfo(project_directory.as_posix())
+    new_project_directory: DirectoryInfo = DirectoryInfo(project_directory.as_posix())
 
     project_composition: Siemens.Engineering.ProjectComposition = tia.Projects
-    project: Siemens.Engineering.Project = project_composition.Create(project_directory, name)
+    project: Siemens.Engineering.Project = project_composition.Create(new_project_directory, name)
 
     return project
 
@@ -91,6 +92,28 @@ def create_and_plug_device_item(hw_object: Siemens.Engineering.HW.HardwareObject
         return
 
     print(f"{data.TypeIdentifier} Not PLUGGED on {data.PositionNumber + slots_required}")
+
+def create_plc_block_from_mastercopy(plc_block: Siemens.Engineering.SW.Blocks.PlcBlock,
+                                     master_copy: Siemens.Engineering.MasterCopies.MasterCopy
+                                     ) -> None:
+    block = plc_block.CreateFrom(master_copy)
+
+    return block
+
+def create_io_system(itf: Siemens.Engineering.HW.Features.NetworkInterface,
+                     data: objects.Network,
+                     ) -> tuple[Siemens.Engineering.HW.Subnet, Siemens.Engineering.HW.IoSystem]:
+    subnet: Siemens.Engineering.HW.Subnet = itf.Nodes[0].CreateAndConnectToSubnet(data.subnet_name)
+    io_system: Siemens.Engineering.HW.IoSystem = itf.IoControllers[0].CreateIoSystem(data.io_controller)
+
+    return (subnet, io_system)
+
+def create_tag_table(software_base: Siemens.Engineering.HW.Software, data: objects.TagTable) -> Siemens.Engineering.SW.Tags.PlcTagTable:
+    return software_base.TagTableGroup.TagTables.Create(data.name)
+
+def create_tag(table: Siemens.Engineering.SW.Tags.PlcTagTable, tag: objects.Tag) -> None:
+    table.Tags.Create(tag.tag_name, tag.data_type, tag.logical_address)
+    print(f"Creating tags... {tag.tag_name}")
 
 def access_device_item_from_device(device: Siemens.Engineering.HW.Device, index: int = 0) -> Siemens.Engineering.HW.DeviceItem:
     return device.DeviceItems[index]
@@ -132,14 +155,6 @@ def find_master_copy_by_name(library: Siemens.Engineering.Library.GlobalLibrary,
 
     return master_copy
 
-def create_io_system(itf: Siemens.Engineering.HW.Features.NetworkInterface,
-                     data: objects.Network,
-                     ) -> tuple[Siemens.Engineering.HW.Subnet, Siemens.Engineering.HW.IoSystem]:
-    subnet: Siemens.Engineering.HW.Subnet = itf.Nodes[0].CreateAndConnectToSubnet(data.subnet_name)
-    io_system: Siemens.Engineering.HW.IoSystem = itf.IoControllers[0].CreateIoSystem(data.io_controller)
-
-    return (subnet, io_system)
-
 def connect_to_io_system(itf: Siemens.Engineering.HW.Features.NetworkInterface,
                          subnet: Siemens.Enginerring.HW.Subnet,
                          io_system: Siemens.Engineering.HW.IoSystem,
@@ -154,13 +169,6 @@ def set_object_attributes(obj: Siemens.Engineering.IEngineeringObject, **attribu
         for attrib in obj_attrs: # we do a lil bit of iteration
             if attrib.Name == attribute:
                 obj.SetAttribute(attribute, value)
-
-def create_tag_table(software_base: Siemens.Engineering.HW.Software, data: objects.TagTable) -> Siemens.Engineering.SW.Tags.PlcTagTable:
-    return software_base.TagTableGroup.TagTables.Create(data.name)
-
-def create_tag(table: Siemens.Engineering.SW.Tags.PlcTagTable, tag: objects.Tag) -> None:
-    table.Tags.Create(tag.tag_name, tag.data_type, tag.logical_address)
-    print(f"Creating tags... {tag.tag_name}")
 
 def query_program_blocks_of_device(plc: Siemens.Engineering.SW.PlcSoftware) -> list[Siemens.Engineering.SW.Blocks.PlcBlocks]:
     software: Siemens.Engineering.SW.PlcSoftware = plc.Software
@@ -180,41 +188,47 @@ def open_library(portal: Siemens.Engineering.TiaPortal, file_info: FileInfo, is_
         return portal.GlobalLibraries.Open(file_info, tia.OpenMode.ReadWrite) # Write access to the library. Data can be written to the library.
     return portal.GlobalLibraries.Open(file_info, tia.OpenMode.ReadOnly) # Read access to the library. Data can be read from the library.
 
-def create_plc_block_from_mastercopy(plc_block: Siemens.Engineering.SW.Blocks.PlcBlock,
-                                     master_copy: Siemens.Engineering.MasterCopies.MasterCopy
-                                     ) -> None:
-    block = plc_block.CreateFrom(master_copy)
+def compile_block(block: Siemens.Engineering.SW.Blocks.PlcBlock) -> Siemens.Engineering.Compiler.CompilerResult:
+    single_compile: Siemens.Engineering.Compiler.ICompilable = block.GetService[tia.Compiler.ICompilable]();
+    result: Siemens.Engineering.Compiler.CompilerResult = single_compile.Compile()
 
-    return block
+    return result
 
-def _create_master_copy(project: Siemens.Engineering.Project,
-                        obj_type: str,
-                        source: str,
-                        destination: str,
-                        ) -> Siemens.Engineering.IEngineeringObject | None:
-    match obj_type:
-        case "PlcBlock":
-            plc = find_plc_by_name(project, destination)
-            if destination:
-                block = plc.BlockGroup.Blocks
-                return create_plc_block_from_mastercopy(block, source)
+def export_block_as_xml(block: Siemens.Engineering.SW.Blocks.PlcBlock,
+                        directory: Path,
+                        ) -> None:
+    if not directory.exists():
+        raise PPError(f"Directory does not exist: {directory}")
+    if not directory.is_dir():
+        raise PPError(f"Path is not a directory: {directory}")
 
-        case "Device":
-            return
+    file_path: FileInfo = FileInfo(f"{directory.as_posix()}/{block.Name}.xml")
+    if file_path.Exists:
+        raise PPError(f"File already exists: {file_path}")
 
-        case "DeviceItem":
-            return
+    export_options: Siemens.Engineering.ExportOptions = tia.ExportOptions.WithReadOnly | tia.ExportOptions.WithDefaults   
 
-        case "DeviceGroup":
-            return
+    block.Export(file_path, export_options)
 
-        case "Subnet":
-            return
+    return
 
-        case _:
-            return None
+def import_xml_block(blocks: Siemens.Engineering.SW.Blocks.PlcBlockComposition,
+                     xml: FileInfo,
+                     ) -> None:
+    blocks.Import(xml, tia.ImportOptions.Override)
 
+    return
 
+def create_instance_db(plc: Siemens.Engineering.HW.Features.SoftwareContainer, name: str,
+                       number: int, instance_of_name: str) -> Siemens.Engineering.SW.Blocks.InstanceDB:
+    name = name + "_DB"
+    blocks: Siemens.Engineering.SW.Blocks.PlcBlockComposition = plc.BlockGroup.Blocks
+    for block in blocks:
+        if name == block.Name:
+            raise PPError(f"The block name '{name}' is invalid. An object with this name or this number already exists.")
+    instance_db = blocks.CreateInstanceDB(name, True, number, instance_of_name)
+
+    return instance_db
 
 def parse(path: str) -> objects.Config:
     """
@@ -300,12 +314,35 @@ def execute(config: objects.Config):
             print(f"Adding {master_copy.source} to {master_copy.destination}...")
             source = find_master_copy_by_name(lib, master_copy.source)
 
-            copied = _create_master_copy(project, master_copy.object_type,
-                                         source, master_copy.destination)
-
+            plc = find_plc_by_name(project, master_copy.destination)
+            if not plc:
+                continue
+            block = plc.BlockGroup.Blocks
+            copy = create_plc_block_from_mastercopy(block, source)
             attrs = {"Name": master_copy.name}
-            if copied:
-                set_object_attributes(copied, **attrs)
-                print(f"Copied PLC block: {copied.Name}")
+            set_object_attributes(copy, **attrs)
+
+            if copy:
+                print(f"Copied PLC block: {copy.Name}")
+
+        fbs: list[str] = []
+        dbs: list[str] = []
+        for instance in library.instances:
+            source = find_master_copy_by_name(lib, instance.source)
+            plc = find_plc_by_name(project, instance.destination)
+            if not plc:
+                continue
+
+            block = plc.BlockGroup.Blocks
+            fb = create_plc_block_from_mastercopy(block, source)
+            attrs = {"Name": instance.name}
+            set_object_attributes(fb, **attrs)
+            db = create_instance_db(plc, instance.name, 1, instance.name)
+
+            fbs.append(instance.name)
+            dbs.append(db.Name)
+
+        xml = OB.generate("Main", 1, "LAD", fbs, dbs)
+        print(xml)
 
     return portal
