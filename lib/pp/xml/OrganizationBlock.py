@@ -4,6 +4,10 @@ from pathlib import Path
 from string import Template
 
 
+BLOCK_ID_START: int     = 3
+BLOCK_ID_SKIP: int      = 5
+CALL_ID_START: int      = 21
+
 @dataclass
 class XML:
     Name: str
@@ -55,6 +59,8 @@ for template in TEMPLATES:
 
 
 def build_xml(data: XML) -> str:
+    if not data.Number == 1 and not (data.Number >= 123 and data.Number <= 32767):
+        raise ValueError(f"UID Value must be within range: 1; 123-32767. {data.Number} is not valid.")
     blocks = ""
     for block in data.Blocks:
         blocks += build_sw_blocks_compile_unit(block)
@@ -76,8 +82,6 @@ def build_sw_blocks_compile_unit(data: SWBlocksCompileUnit) -> str:
     return xml['SW.Blocks.CompileUnit'].substitute(ID=data.Id, PARTS=parts, WIRES=wires, PROGRAMMING_LANGUAGE=data.ProgrammingLanguage)
 
 def build_call(data: Call) -> str:
-    if data.Uid >= 2 and data.Uid < 123:
-        raise ValueError(f"UID Value must be within range: 1; 123-32767. {data.Uid} is not valid.")
 
     return xml['Call'].substitute(UID=data.Uid, NAME=data.Name, BLOCK_TYPE=data.BlockType, BLOCK_NUMBER=data.BlockNumber, INSTANCE_UID=data.InstanceUid,
                                   COMPONENT_NAME=data.ComponentName, DB_TYPE=data.DataBlockType, DB_NUMBER=data.DataBlockNumber)
@@ -91,3 +95,28 @@ def build_wire_b(data: WireB) -> str:
 def build_multilingual_text(data: MultilingualText) -> str:
     return xml['MultilingualText'].substitute(MULTILINGUAL_TEXT_ID=data.Id, MULTILINGUAL_TEXT_ITEM_ID=data.ItemId)
 
+def generate(name: str, number: int, programming_language: str, function_block_names: list[str], data_block_names: list[str]) -> str:
+    blocks: list[SWBlocksCompileUnit] = []
+
+    count = 0
+    for i in range(len(min(function_block_names, data_block_names))):
+        fb = function_block_names[i]
+        db = data_block_names[i]
+
+        part: Call = Call(21, fb, "FB", 1, 22, db, fb, count+1)
+        wire: Wire = Wire(23, 21)
+
+        id = (count * BLOCK_ID_SKIP) + BLOCK_ID_START
+        block: SWBlocksCompileUnit = SWBlocksCompileUnit(id, [part], [wire], programming_language)
+
+        blocks.append(block)
+        count += 1
+
+    id = (count * BLOCK_ID_SKIP) + BLOCK_ID_START
+    multilingual_text: str = build_multilingual_text(MultilingualText(id + 5, id + 6))
+
+    xml: XML = XML(name, number, programming_language, blocks, multilingual_text)
+
+    result: str = build_xml(xml)
+
+    return result
