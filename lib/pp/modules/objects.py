@@ -217,7 +217,7 @@ def parse_project(**data: dict[str, Any]) -> Project:
     keys = data.keys()
 
     if 'devices' in keys:
-        for _, dev in data['devices'].items():
+        for dev in data['devices']:
             value = interpret_device(dev)
             conf.devices.append(value)
 
