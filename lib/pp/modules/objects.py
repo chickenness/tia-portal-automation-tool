@@ -15,14 +15,14 @@ class Config:
 
 @dataclass
 class Tag(Config):
-    tag_name: str                               = ""
-    data_type: str                              = ""
-    logical_address: str                        = ""
+    tag_name: str                           = ""
+    data_type: str                          = ""
+    logical_address: str                    = ""
 
 @dataclass
 class TagTable(Config):
-    name: str                                   = ""
-    tags: list[Tag]                             = field(default_factory=list)
+    name: str                               = ""
+    tags: list[Tag]                         = field(default_factory=list)
 
 @dataclass
 class DeviceItem(Config):
@@ -38,9 +38,9 @@ class DeviceItem(Config):
     |-----------------|----------|--------------------------------------------|
     """
 
-    TypeIdentifier: str                         = "OrderNumber:6ES7 521-1BL00-0AB0/V2.1"
-    Name: str                                   = "IO1"
-    PositionNumber: int                         = 0
+    TypeIdentifier: str                     = "OrderNumber:6ES7 521-1BL00-0AB0/V2.1"
+    Name: str                               = "IO1"
+    PositionNumber: int                     = 0
 
 @dataclass
 class Device(Config):
@@ -57,28 +57,28 @@ class Device(Config):
     |--------------------|--------|--------------------------------------------|
     """
 
-    DeviceItemTypeId: str                       = "OrderNumber:6ES7 510-1DJ01-0AB0/V2.0"
-    DeviceTypeId: str                           = "PLC_1"
-    DeviceItemName: str                         = "NewDevice"
-    DeviceName: str                             = ""
-    items: list[DeviceItem]                     = field(default_factory=list)
-    slots_required: int                         = 2
-    network_address: str                        = "192.168.0.112"
-    tag_table: TagTable                         = field(default_factory=TagTable)
+    DeviceItemTypeId: str                   = "OrderNumber:6ES7 510-1DJ01-0AB0/V2.0"
+    DeviceTypeId: str                       = "PLC_1"
+    DeviceItemName: str                     = "NewDevice"
+    DeviceName: str                         = ""
+    items: list[DeviceItem]                 = field(default_factory=list)
+    slots_required: int                     = 2
+    network_address: str                    = "192.168.0.112"
+    tag_table: TagTable                     = field(default_factory=TagTable)
 
 @dataclass
 class Network(Config):
-    address: str                                = "192.168.0.112"
-    subnet_name: str                            = "Profinet"
-    io_controller: str                          = "PNIO"
+    address: str                            = "192.168.0.112"
+    subnet_name: str                        = "Profinet"
+    io_controller: str                      = "PNIO"
 
 @dataclass
 class MasterCopy(Config):
-    block_type: str                             = ""
-    source: str                                 = ""
-    destination: str                            = ""
-    name: str                                   = ""
-    is_master_copy: bool                        = True
+    block_type: str                         = ""
+    source: str                             = ""
+    destination: str                        = ""
+    name: str                               = ""
+    is_master_copy: bool                    = True
 
 @dataclass
 class Instance(Config):
@@ -91,27 +91,27 @@ class Instance(Config):
 
 @dataclass
 class Library(Config):
-    path: Path                                  = Path()
-    read_only: bool                             = True
-    master_copies: list[MasterCopy]             = field(default_factory=list)
-    instances: list[Instance]                   = field(default_factory=list)
+    path: Path                              = Path()
+    read_only: bool                         = True
+    master_copies: list[MasterCopy]         = field(default_factory=list)
+    instances: list[Instance]               = field(default_factory=list)
 
 @dataclass
 class Project(Config):
-    name: str                                   = "AutomationProject420"
-    directory: Path                             = Path.home()
-    overwrite: bool                             = False
-    devices: list[Device]                       = field(default_factory=list)
-    networks: list[Network]                     = field(default_factory=list)
-    libraries: list[Library]                    = field(default_factory=list)
+    name: str                               = "AutomationProject420"
+    directory: Path                         = Path.home()
+    overwrite: bool                         = False
+    devices: list[Device]                   = field(default_factory=list)
+    networks: list[Network]                 = field(default_factory=list)
+    libraries: list[Library]                = field(default_factory=list)
 
 @dataclass
 class TIA(Config):
-    version: int                                = 18
-    filename: str                               = "Siemens.Engineering.dll"
-    dll: Path                                   = field(init=False)
-    enable_ui: bool                             = True
-    project: Config                             = field(default_factory=Project)
+    version: int                            = 18
+    filename: str                           = "Siemens.Engineering.dll"
+    dll: Path                               = field(init=False)
+    enable_ui: bool                         = True
+    project: Config                         = field(default_factory=Project)
 
     def __post_init__(self):
         self.dll = Path(rf"C:/Program Files/Siemens/Automation/Portal V{self.version}/PublicAPI/V{self.version}/{self.filename}")
