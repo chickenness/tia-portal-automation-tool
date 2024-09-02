@@ -49,7 +49,7 @@ class MainWindow(wx.Frame):
         config: Config = self.config
 
         portal = pp.TiaPortal(config)
-        project = pp.create_project(portal, config.project.name, config.project.directory)
+        project = pp.create_project(portal, config.project.name, config.project.directory, config.project.overwrite)
 
         devices: list[Siemens.Engineering.HW.Device] = []
         interfaces: list[Siemens.Engineering.HW.Features.NetworkInterface] = []

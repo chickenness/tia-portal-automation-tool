@@ -95,6 +95,7 @@ class Library(Config):
 class Project(Config):
     name: str                           = "AutomationProject420"
     directory: Path                     = Path.home()
+    overwrite: bool                     = False
     devices: list[Device]               = field(default_factory=list)
     networks: list[Network]             = field(default_factory=list)
     libraries: list[Library]            = field(default_factory=list)

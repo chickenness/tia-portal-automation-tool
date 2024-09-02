@@ -66,15 +66,18 @@ def TiaPortal(config: objects.Config) -> Siemens.Engineering.TiaPortal:
 
     return TIA
 
-def create_project(tia: Siemens.Engineering.TiaPortal, name: str, project_directory: Path) -> Siemens.Engineering.Project:
-    project_path: DirectoryInfo = DirectoryInfo(project_directory.joinpath(name).as_posix())
-    if project_path.Exists:
-        raise PPError(f"Failed creating project. Project already exists ({project_path})")
+def create_project(tia: Siemens.Engineering.TiaPortal, name: str, parent_directory: Path, replace=False) -> Siemens.Engineering.Project:
+    existing_project_path: DirectoryInfo = DirectoryInfo(parent_directory.joinpath(name).as_posix())
 
-    new_project_directory: DirectoryInfo = DirectoryInfo(project_directory.as_posix())
+    if existing_project_path.Exists:
+        if replace:
+            existing_project_path.Delete(True)
+        else:
+            raise PPError(f"Failed creating project. Project already exists ({existing_project_path})")
 
+    project_path: DirectoryInfo = DirectoryInfo(parent_directory.as_posix())
     project_composition: Siemens.Engineering.ProjectComposition = tia.Projects
-    project: Siemens.Engineering.Project = project_composition.Create(new_project_directory, name)
+    project: Siemens.Engineering.Project = project_composition.Create(project_path, name)
 
     return project
 
