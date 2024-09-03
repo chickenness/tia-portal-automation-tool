@@ -78,7 +78,7 @@ class MasterCopy(Config):
     source: str                             = ""
     destination: str                        = ""
     name: str                               = ""
-    is_master_copy: bool                    = True
+    is_mastercopy: bool                     = True
 
 @dataclass
 class Instance(Config):
