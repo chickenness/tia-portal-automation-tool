@@ -74,10 +74,10 @@ def build_sw_blocks_compile_unit(data: SWBlocksCompileUnit) -> str:
 
     wires = ""
     for wire in data.Wires:
-        if hasattr(wire, 'EnoUid'):
-            wires += build_wire_b(wire)
-        else:
+        if type(wire) == Wire:
             wires += build_wire(wire)
+        if type(wire) == WireB:
+            wires += build_wire_b(wire)
 
     return xml['SW.Blocks.CompileUnit'].substitute(ID=data.Id, PARTS=parts, WIRES=wires, PROGRAMMING_LANGUAGE=data.ProgrammingLanguage)
 
