@@ -153,6 +153,11 @@ def find_plc_by_name(project: Siemens.Engineering.Project, name: str) -> Siemens
             if plc_software.Name.lower() == name.lower():
                 return plc_software
 
+def find_plc_block_by_name(block: Siemens.Engineering.SW.Blocks.PlcBlockComposition, name: str) -> Siemens.Engineering.SW.Blocks:
+    plc_block: Siemens.Engineering.SW.Blocks = block.Find(name)
+
+    return plc_block
+
 def find_master_copy_by_name(library: Siemens.Engineering.Library.GlobalLibrary, name: str) -> Siemens.Engineering.Library.MasterCopies.MasterCopy:
     system_folder: Siemens.Engineering.Library.MasterCopies.MasterCopySystemFolder = library.MasterCopyFolder
     mastercopies: Siemens.Engineering.Library.MasterCopies.MasterCopyComposition = system_folder.MasterCopies
