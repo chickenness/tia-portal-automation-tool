@@ -123,14 +123,8 @@ def generate(name: str, number: int, programming_language: str, networks: dict[i
             en = eno + 2
             if i == 0:
                 wire: Wire = Wire(uid, 21)
-                if len(calls) > 1:
-                    print(f"i==0, {i}")
-                    print(uid, 21)
             else:
                 wire: Wire = WireB(uid, en, eno)
-                if len(calls) > 1:
-                    print(f"i>=1, {i}")
-                    print(uid, eno, en)
             wires.append(wire)
         
         uid = (count_for_id * BLOCK_ID_SKIP) + BLOCK_ID_START
