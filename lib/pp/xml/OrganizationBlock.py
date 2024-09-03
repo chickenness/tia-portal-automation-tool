@@ -144,5 +144,9 @@ def generate(name: str, number: int, programming_language: str, networks: dict[i
     xml: XML = XML(name, number, programming_language, blocks, multilingual_text)
 
     result: str = build_xml(xml)
+
+    if save_as_xml:
+        with open(xml_path.absolute(), 'w') as file:
+            file.write(result)
     
     return result
