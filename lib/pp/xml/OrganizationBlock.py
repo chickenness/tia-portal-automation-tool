@@ -90,7 +90,7 @@ def build_wire(data: Wire) -> str:
     return xml['Wire'].substitute(UID=data.Uid, EN_UID=data.EnUid)
 
 def build_wire_b(data: WireB) -> str:
-    return xml['Wire_b'].substitute(UID=data.Uid, EN_UID=data.EnUid, ENO_UID=data.EnoUid)
+    return xml['Wire_b'].substitute(UID=data.Uid, ENO_UID=data.EnoUid, EN_UID=data.EnUid)
 
 def build_multilingual_text(data: MultilingualText) -> str:
     return xml['MultilingualText'].substitute(MULTILINGUAL_TEXT_ID=data.Id, MULTILINGUAL_TEXT_ITEM_ID=data.ItemId)
