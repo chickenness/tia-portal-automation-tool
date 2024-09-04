@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from .modules import objects
-from .xml import xml
+from .xml import OB, FB
 from datetime import datetime
 from pathlib import Path
 import json

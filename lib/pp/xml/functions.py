@@ -28,7 +28,7 @@ class XML:
 class SWBlocksCompileUnit:
     Id: int
     Parts: list[Call]
-    Wires: list[WireOB]
+    Wires: list[Wire]
     ProgrammingLanguage: str
 
 @dataclass
@@ -43,13 +43,20 @@ class Call:
     DataBlockNumber: int
 
 @dataclass
-class WireOB:
+class Wire:
     Uid: int
+
+@dataclass
+class WirePower(Wire):
     EnUid: int
 
 @dataclass
-class WireEno:
-    Uid: int
+class WireOpen(Wire):
+    OpenUid: int
+    EnUid: int
+
+@dataclass
+class WireEno(Wire):
     EnoUid: int
     EnUid: int
 
@@ -88,8 +95,10 @@ def build_sw_blocks_compile_unit(data: SWBlocksCompileUnit, xml_templates: dict)
 
     wires = ""
     for wire in data.Wires:
-        if type(wire) == WireOB:
-            wires += build_wire(wire, xml_templates)
+        if type(wire) == WirePower:
+            wires += build_wire_power(wire, xml_templates)
+        if type(wire) == WireOpen:
+            wires += build_wire_open(wire, xml_templates)
         if type(wire) == WireEno:
             wires += build_wire_eno(wire, xml_templates)
 
@@ -99,8 +108,11 @@ def build_call(data: Call, xml_templates: dict) -> str:
     return xml_templates['Call'].substitute(UID=data.Uid, NAME=data.Name, BLOCK_TYPE=data.BlockType, BLOCK_NUMBER=data.BlockNumber, INSTANCE_UID=data.InstanceUid,
                                   COMPONENT_NAME=data.ComponentName, DB_TYPE=data.DataBlockType, DB_NUMBER=data.DataBlockNumber)
 
-def build_wire(data: WireOB, xml_templates: dict) -> str:
-    return xml_templates['WireOB'].substitute(UID=data.Uid, EN_UID=data.EnUid)
+def build_wire_power(data: WirePower, xml_templates: dict) -> str:
+    return xml_templates['WirePower'].substitute(UID=data.Uid, EN_UID=data.EnUid)
+
+def build_wire_open(data: WireOpen, xml_templates: dict) -> str:
+    return xml_templates['WireOpen'].substitute(UID=data.Uid, OPEN_CON_UID=data.OpenUid, EN_UID=data.EnUid)
 
 def build_wire_eno(data: WireEno, xml_templates: dict) -> str:
     return xml_templates['Wire_Eno'].substitute(UID=data.Uid, ENO_UID=data.EnoUid, EN_UID=data.EnUid)
@@ -129,48 +141,16 @@ def identify_block_type(plc_block_type: str) -> str:
         case _:
             return SW_BLOCK_OB
 
-def generate_ob(name: str, number: int, programming_language: str, networks: dict[int, list[dict[str, str]]],
-                xml_path: Path) -> str:
+def generate_instance_network(network: list[dict[str, str]]) -> tuple[list[Call], int]:
+    calls: list[Call] = []
+    iteration = 0
+    for instance in network:
+        fb = instance['fb']
+        db = instance['db']
+        block_type = instance['type']
 
-    blocks: list[SWBlocksCompileUnit] = []
+        part: Call = Call(CALL_ID_START+iteration, fb, block_type, 1, CALL_ID_START+1+iteration, db, fb, iteration+1)
+        iteration += 2
+        calls.append(part)
 
-    count_for_id = 0
-    for _id, network in networks.items():
-        calls: list[Call] = []
-        wires: list[WireOB] = []
-        iteration = 0
-        for instance in network:
-            fb = instance['fb']
-            db = instance['db']
-            block_type = instance['type']
-
-            part: Call = Call(CALL_ID_START+iteration, fb, block_type, 1, CALL_ID_START+1+iteration, db, fb, iteration+1)
-            iteration += 2
-            calls.append(part)
-
-        for i in range(len(calls)):
-            uid = CALL_ID_START + iteration + i
-            eno = WIRE_ENO_ID_START + (i * 2) - 2
-            en = eno + 2
-            if i == 0:
-                wire: WireOB = WireOB(uid, 21)
-            else:
-                wire: WireEno = WireEno(uid, en, eno)
-            wires.append(wire)
-        
-        uid = (count_for_id * BLOCK_ID_SKIP) + BLOCK_ID_START
-        block: SWBlocksCompileUnit = SWBlocksCompileUnit(uid, calls, wires, programming_language)
-
-        blocks.append(block)
-        count_for_id += 1
-
-    uid = (count_for_id * BLOCK_ID_SKIP) + BLOCK_ID_START
-    templates = import_xml(OB_TEMPLATES)
-    multilingual_text: str = build_multilingual_text(MultilingualText(uid + 5, uid + 6), templates)
-    xml: XML = XML(SW_BLOCK_OB, name, number, programming_language, blocks, multilingual_text)
-
-    result: str = build_xml(xml, templates)
-    save_xml(xml_path, result)
-
-    return result
-
+    return (calls, iteration)
