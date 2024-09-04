@@ -8,9 +8,12 @@ BLOCK_ID_START: int     = 3
 BLOCK_ID_SKIP: int      = 5
 CALL_ID_START: int      = 21
 WIRE_ENO_ID_START: int  = 21
+SW_BLOCK_OB: str        = "SW.Blocks.OB"
+SW_BLOCK_FB: str        = "SW.Blocks.FB"
 
 @dataclass
 class XML:
+    BlockType: str
     Name: str
     Number: int
     ProgrammingLanguage: str
@@ -50,8 +53,9 @@ class MultilingualText:
     ItemId: int
 
 
-TEMPLATE_DIRECTORY: Path    = Path("./lib/pp/xml/Templates/OrganizationBlock/")
-TEMPLATES: list[Path]       = [template for template in TEMPLATE_DIRECTORY.iterdir() if template.is_file()] 
+COMMON_TEMPLATES: list      = list(Path("./lib/pp/xml/Templates/common/").iterdir())
+TEMPLATE_DIRECTORY: list    = list(Path("./lib/pp/xml/Templates/OrganizationBlock/").iterdir())
+TEMPLATES: list[Path]       = [file for file in COMMON_TEMPLATES+TEMPLATE_DIRECTORY if file.is_file()]
 
 xml: dict[str, Template] = {}
 for template in TEMPLATES:
@@ -60,13 +64,15 @@ for template in TEMPLATES:
 
 
 def build_xml(data: XML) -> str:
+    print(f"build_xml: {data.BlockType}")
     if not data.Number == 1 and not (data.Number >= 123 and data.Number <= 32767):
         raise ValueError(f"UID Value must be within range: 1; 123-32767. {data.Number} is not valid.")
     blocks = ""
     for block in data.Blocks:
         blocks += build_sw_blocks_compile_unit(block)
 
-    return xml['XML'].substitute(NAME=data.Name, NUMBER=data.Number, PROGRAMMING_LANGUAGE=data.ProgrammingLanguage, BLOCKS=blocks, MULTILINGUAL_TEXT=data.MultilingualText)
+    return xml['XML'].substitute(BLOCK_TYPE=data.BlockType, NAME=data.Name, NUMBER=data.Number, PROGRAMMING_LANGUAGE=data.ProgrammingLanguage,
+                                 BLOCKS=blocks, MULTILINGUAL_TEXT=data.MultilingualText)
 
 def build_sw_blocks_compile_unit(data: SWBlocksCompileUnit) -> str:
     parts = ""
@@ -96,10 +102,21 @@ def build_wire_b(data: WireB) -> str:
 def build_multilingual_text(data: MultilingualText) -> str:
     return xml['MultilingualText'].substitute(MULTILINGUAL_TEXT_ID=data.Id, MULTILINGUAL_TEXT_ITEM_ID=data.ItemId)
 
-def generate(name: str, number: int, programming_language: str, networks: dict[int, list[dict[str, str]]], xml_path: Path) -> str:
+def generate(plc_block_type: str, name: str, number: int, programming_language: str, networks: dict[int, list[dict[str, str]]], xml_path: Path) -> str:
     save_as_xml: bool = True
     if xml_path.is_dir():
         save_as_xml = False
+
+
+    match plc_block_type:
+        case "SW.Blocks.OB" | "OB":
+            sw_block = SW_BLOCK_OB
+
+        case "SW.Blocks.FB" | "FB":
+            sw_block = SW_BLOCK_FB
+
+        case _:
+            sw_block = SW_BLOCK_OB
 
     blocks: list[SWBlocksCompileUnit] = []
 
@@ -135,8 +152,9 @@ def generate(name: str, number: int, programming_language: str, networks: dict[i
 
     uid = (count_for_id * BLOCK_ID_SKIP) + BLOCK_ID_START
     multilingual_text: str = build_multilingual_text(MultilingualText(uid + 5, uid + 6))
-    xml: XML = XML(name, number, programming_language, blocks, multilingual_text)
+    xml: XML = XML(sw_block, name, number, programming_language, blocks, multilingual_text)
 
+    print(f"generate: {sw_block}")
     result: str = build_xml(xml)
 
     if save_as_xml:
