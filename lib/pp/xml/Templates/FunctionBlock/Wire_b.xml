@@ -1,0 +1,4 @@
+<Wire UId="$UID">
+	<NameCon UId="$ENO_UID" Name="eno" />
+	<NameCon UId="$EN_UID" Name="en" />
+</Wire>

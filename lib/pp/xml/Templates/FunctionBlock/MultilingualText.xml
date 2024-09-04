@@ -1,0 +1,10 @@
+<MultilingualText ID="$MULTILINGUAL_TEXT_ID" CompositionName="Title">
+	<ObjectList>
+		<MultilingualTextItem ID="$MULTILINGUAL_TEXT_ITEM_ID" CompositionName="Items">
+			<AttributeList>
+				<Culture>en-US</Culture>
+				<Text />
+			</AttributeList>
+		</MultilingualTextItem>
+	</ObjectList>
+</MultilingualText>
