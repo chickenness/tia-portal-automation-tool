@@ -98,21 +98,12 @@ class Library(Config):
 
 @dataclass
 class Project(Config):
-<<<<<<< HEAD
     name: str                               = "AutomationProject420"
     directory: Path                         = Path.home()
     overwrite: bool                         = False
     devices: list[Device]                   = field(default_factory=list)
     networks: list[Network]                 = field(default_factory=list)
     libraries: list[Library]                = field(default_factory=list)
-=======
-    name: str                           = "AutomationProject420"
-    directory: Path                     = Path.home()
-    overwrite: bool                     = False
-    devices: list[Device]               = field(default_factory=list)
-    networks: list[Network]             = field(default_factory=list)
-    libraries: list[Library]            = field(default_factory=list)
->>>>>>> 1a68340 (UPDATE: Allow project overwriting for #7)
 
 @dataclass
 class TIA(Config):
