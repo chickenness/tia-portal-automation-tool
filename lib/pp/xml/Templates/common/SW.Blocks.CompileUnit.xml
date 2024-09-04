@@ -1,0 +1,16 @@
+<SW.Blocks.CompileUnit ID="$ID" CompositionName="CompileUnits">
+	<AttributeList>
+		<NetworkSource>
+			<FlgNet
+				xmlns="http://www.siemens.com/automation/Openness/SW/NetworkSource/FlgNet/v4">
+				<Parts>
+					$PARTS
+				</Parts>
+				<Wires>
+					$WIRES
+				</Wires>
+			</FlgNet>
+		</NetworkSource>
+		<ProgrammingLanguage>$PROGRAMMING_LANGUAGE</ProgrammingLanguage>
+	</AttributeList>
+</SW.Blocks.CompileUnit>
