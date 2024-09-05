@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from string import Template
 
+from . import formulas as f
 
 BLOCK_ID_START: int             = 3
 BLOCK_ID_SKIP: int              = 5
@@ -153,3 +154,27 @@ def generate_instance_network(network: list[dict[str, str]]) -> tuple[list[Call]
         calls.append(part)
 
     return (calls, iteration)
+
+def generate_wire(calls: list[Call], iterations: int, programming_language: str) -> list[Wire]:
+    wires: list[Wire] = []
+    for i in range(len(calls)):
+        eno = f.wire_eno(i)
+        en = f.wire_en(i)
+        match programming_language:
+            case "FBD":
+                uid = f.wire_fbd_uid(iterations, i)
+                opencon = f.wire_open(iterations)
+                if i == 0:
+                    wire: Wire = WireOpen(uid, opencon, 21)
+                else:
+                    wire: Wire = WireEno(uid, eno, en)
+                wires.append(wire)
+            case "LAD":
+                uid = f.wire_lad_uid(iterations, i)
+                if i == 0:
+                    wire: Wire = WirePower(uid, 21)
+                else:
+                    wire: Wire = WireEno(uid, eno, en)
+                wires.append(wire)
+
+    return wires

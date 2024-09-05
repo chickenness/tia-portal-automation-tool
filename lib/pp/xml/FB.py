@@ -9,17 +9,17 @@ def generate(name: str, number: int, programming_language: str, networks: dict[i
     count_for_id = 0
     for _id, network in networks.items():
         calls, iteration = F.generate_instance_network(network)
-        wires: list[F.Wire] = []
-        for i in range(len(calls)):
-            uid = f.wire_fb_uid(iteration, i)
-            eno = f.wire_eno(i)
-            en = f.wire_en(i)
-            opencon = f.wire_open(iteration)
-            if i == 0:
-                wire: F.Wire = F.WireOpen(uid, opencon, 21)
-            else:
-                wire: F.Wire = F.WireEno(uid, eno, en)
-            wires.append(wire)
+        wires: list[F.Wire] = F.generate_wire(calls, iteration, programming_language)
+        # for i in range(len(calls)):
+        #     uid = f.wire_fb_uid(iteration, i)
+        #     eno = f.wire_eno(i)
+        #     en = f.wire_en(i)
+        #     opencon = f.wire_open(iteration)
+        #     if i == 0:
+        #         wire: F.Wire = F.WireOpen(uid, opencon, 21)
+        #     else:
+        #         wire: F.Wire = F.WireEno(uid, eno, en)
+        #     wires.append(wire)
         
         uid = f.sw_blocks_objects_uid(count_for_id)
         block: F.SWBlocksCompileUnit = F.SWBlocksCompileUnit(uid, calls, wires, programming_language)
