@@ -1,10 +1,9 @@
 from lib.pp import pp
 from gui import MenuBar, FileDialog, Notebook
 from pathlib import Path
-import tempfile
-import uuid
 import wx
-
+import uuid
+import tempfile
 
 class MainWindow(wx.Frame):
     def __init__(self, parent, title) -> None:
@@ -103,7 +102,6 @@ class MainWindow(wx.Frame):
         for library in config.project.libraries:
             print(f"Opening library: {library.path}")
             lib = pp.open_library(portal, pp.FileInfo(library.path.as_posix()), library.read_only)
-          
             for master_copy in library.master_copies:
                 print(f"Adding {master_copy.source} to {master_copy.destination}...")
                 source = pp.find_master_copy_by_name(lib, master_copy.source)
@@ -119,35 +117,62 @@ class MainWindow(wx.Frame):
                 if copy:
                     print(f"Copied PLC block: {copy.Name}")
 
-            fbs: list[str] = []
-            dbs: list[str] = []
             for instance in library.instances:
-                source = pp.find_master_copy_by_name(lib, instance.source)
-                plc = pp.find_plc_by_name(project, instance.destination)
-                if not plc:
-                    continue
+                networks = {}
+                for network, mastercopies in instance.networks.items():
+                    lines = []
+                    for mastercopy in mastercopies:
+                        if mastercopy.is_mastercopy:
+                            source = pp.find_master_copy_by_name(lib, mastercopy.source)
+                            plc = pp.find_plc_by_name(project, mastercopy.destination)
+                            if not plc:
+                                continue
+                            block = plc.BlockGroup.Blocks
+                            fb = pp.create_plc_block_from_mastercopy(block, source)
+                            attrs = {"Name": mastercopy.name}
+                            pp.set_object_attributes(fb, **attrs)
+                            db = pp.create_instance_db(plc, mastercopy.name, 1, mastercopy.name)
+                            data = {
+                                'fb': mastercopy.name,
+                                'db': db.Name,
+                                'type': mastercopy.block_type,
+                            }
+                            lines.append(data)
+                        else:
+                            plc = pp.find_plc_by_name(project, mastercopy.destination)
+                            if not plc:
+                                continue
+                            block = plc.BlockGroup.Blocks
+                            source = pp.find_plc_block_by_name(block, mastercopy.source)   
+                            if not source:
+                                continue
+                            db = pp.create_instance_db(plc, mastercopy.name, 1, mastercopy.name)
+                            data = {
+                                'fb': mastercopy.name,
+                                'db': db.Name,
+                                'type': mastercopy.block_type,
+                            }
+                            lines.append(data)
+                    networks[len(networks)+1] = lines
 
-                block = plc.BlockGroup.Blocks
-                fb = pp.create_plc_block_from_mastercopy(block, source)
-                attrs = {"Name": instance.name}
-                pp.set_object_attributes(fb, **attrs)
-                db = pp.create_instance_db(plc, instance.name, 1, instance.name)
+                match instance.block_type:
+                    case "SW.Blocks.OB" | "OB":
+                        xml = pp.OB.generate(instance.name, instance.number, instance.programming_language, networks, instance.xml_path)
+                       
+                    case "SW.Blocks.FB" | "FB":
+                        xml = pp.FB.generate(instance.name, instance.number, instance.programming_language, networks, instance.xml_path)
 
-                fbs.append(instance.name)
-                dbs.append(db.Name)
+                    case _:
+                        xml = pp.OB.generate(instance.name, instance.number, instance.programming_language, networks, instance.xml_path)
 
-            xml = pp.OB.generate("Main", 1, "LAD", fbs, dbs)
+                filename = uuid.uuid4().hex
+                path = Path(tempfile.gettempdir()).joinpath(filename)
+                with open(path, 'w') as file:
+                    file.write(xml)
+                plc = pp.find_plc_by_name(project, instance.plc_block)
+                blocks = plc.BlockGroup.Blocks
+                pp.import_xml_block(blocks, pp.FileInfo(path.as_posix()))
 
-            plc = pp.find_plc_by_name(project, library.instances[0].destination)
-            blocks = plc.BlockGroup.Blocks 
-
-            filename = uuid.uuid4().hex
-            path = Path(tempfile.gettempdir()).joinpath(filename)
-
-            with open(path, 'w') as file:
-                file.write(xml)
-
-            pp.import_xml_block(blocks, pp.FileInfo(path.as_posix()))
 
 
     def OnExit(self, e):
