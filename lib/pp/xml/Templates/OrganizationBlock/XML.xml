@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Document>
-	<SW.Blocks.OB ID="0">
+	<$BLOCK_TYPE ID="0">
 		<AttributeList>
 			<Name>$NAME</Name>
 			<Namespace />
@@ -22,5 +22,5 @@
 			$BLOCKS
 			$MULTILINGUAL_TEXT
 		</ObjectList>
-	</SW.Blocks.OB>
+	</$BLOCK_TYPE>
 </Document>

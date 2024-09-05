@@ -87,6 +87,7 @@ class Instance(Config):
     programming_language: str               = ""
     number: int                             = 0
     xml_path: Path                          = Path().home()
+    plc_block: str                          = ""
     networks: dict[int, list[MasterCopy]]   = field(default_factory=dict)
 
 @dataclass
