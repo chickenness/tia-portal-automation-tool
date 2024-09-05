@@ -78,7 +78,6 @@ def import_xml(addtional_templates: list[Path]) -> dict[str, Template]:
 
 
 def build_xml(data: XML, xml_templates: dict) -> str:
-    print(f"build_xml: {data.BlockType}")
     if not data.Number == 1 and not (data.Number >= 123 and data.Number <= 32767):
         raise ValueError(f"UID Value must be within range: 1; 123-32767. {data.Number} is not valid.")
     blocks = ""

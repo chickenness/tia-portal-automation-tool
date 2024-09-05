@@ -11,9 +11,9 @@ def generate(name: str, number: int, programming_language: str, networks: dict[i
         calls, iteration = F.generate_instance_network(network)
         wires: list[F.Wire] = []
         for i in range(len(calls)):
-            uid = f.wire_uid(iteration, i)
+            uid = f.wire_ob_uid(iteration, i)
             eno = f.wire_eno(i)
-            en = f.wire_ob_en(i)
+            en = f.wire_en(i)
             if i == 0:
                 wire: F.Wire = F.WirePower(uid, 21)
             else:
