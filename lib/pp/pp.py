@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .modules import objects, log
+from .modules import objects
 from .xml import OB, FB
 from datetime import datetime
 from pathlib import Path
@@ -27,7 +27,6 @@ class ProjectExistsError(PPError):
     def __repr__(self) -> str:
         return f"ProjectExistsError: {self.err}"
 
-log.setup()
 logger = logging.getLogger(__name__)
 
 import clr
@@ -75,26 +74,46 @@ def TiaPortal(config: objects.Config) -> Siemens.Engineering.TiaPortal:
     return TIA
 
 def create_project(tia: Siemens.Engineering.TiaPortal, name: str, parent_directory: Path, replace=False) -> Siemens.Engineering.Project:
-    logger.info(f"Creating project {name} at {parent_directory}...")
+    logger.info(f"Creating project {name} at \"{parent_directory}\"...")
 
     existing_project_path: DirectoryInfo = DirectoryInfo(parent_directory.joinpath(name).as_posix())
 
-    # logger.debug(f"")
+    logger.info(f"Checking for existing project: {existing_project_path}")
 
     if existing_project_path.Exists:
+
+        logger.info(f"{name} already exists...")
+
         if replace:
+
+            logger.info(f"Deleting project {name}...")
+
             existing_project_path.Delete(True)
+
+            logger.info(f"Deleted project {name}")
+
         else:
-            raise PPError(f"Failed creating project. Project already exists ({existing_project_path})")
+            err = f"Failed creating project. Project already exists ({existing_project_path})"
+            logger.error(err)
+            raise PPError(err)
+
+    logger.info("Creating project...")
 
     project_path: DirectoryInfo = DirectoryInfo(parent_directory.as_posix())
+
+    logger.debug(f"Project Path: {project_path}")
+
     project_composition: Siemens.Engineering.ProjectComposition = tia.Projects
     project: Siemens.Engineering.Project = project_composition.Create(project_path, name)
+
+    logger.info(f"Created project {name} at {parent_directory}")
 
     return project
 
 def create_device(devices: Siemens.Engineering.HW.DeviceComposition, data: objects.Device) -> Siemens.Engineering.HW.Device:
     device: Siemens.Engineering.HW.Device = devices.CreateWithItem(data.DeviceItemTypeId, data.DeviceTypeId, data.DeviceItemName)
+
+    logger.info(f"Created device: ({data.DeviceItemName}, {data.DeviceItemTypeId, data.DeviceTypeId}) on {device.Name}")
 
     return device
 
@@ -102,35 +121,65 @@ def create_and_plug_device_item(hw_object: Siemens.Engineering.HW.HardwareObject
                                 data: objects.DeviceItem,
                                 slots_required: int
                                 ) -> None:
+    logger.info(f"Plugging {data.TypeIdentifier} on [{data.PositionNumber + slots_required}]...")
+
     if hw_object.CanPlugNew(data.TypeIdentifier, data.Name, data.PositionNumber + slots_required):
         hw_object.PlugNew(data.TypeIdentifier, data.Name, data.PositionNumber + slots_required)
-        print(f"{data.TypeIdentifier} PLUGGED on [{data.PositionNumber + slots_required}].")
+
+        logger.info(f"{data.TypeIdentifier} PLUGGED on [{data.PositionNumber + slots_required}]")
 
         return
 
-    print(f"{data.TypeIdentifier} Not PLUGGED on {data.PositionNumber + slots_required}")
+    logger.info(f"{data.TypeIdentifier} Not PLUGGED on {data.PositionNumber + slots_required}")
 
 def create_plc_block_from_mastercopy(plc_block: Siemens.Engineering.SW.Blocks.PlcBlock,
                                      master_copy: Siemens.Engineering.MasterCopies.MasterCopy
-                                     ) -> None:
-    block = plc_block.CreateFrom(master_copy)
+                                     ) -> Siemens.Engineering.SW.Blocks.PlcBlock:
+    logger.info(f"Creating PLC block from {master_copy.Name} Mastercopy")
+
+    block: Siemens.Engineering.SW.Blocks.PlcBlock = plc_block.CreateFrom(master_copy)
+
+    logger.info(f"Successfully created PLC block from {master_copy.Name} Mastercopy")
+    logger.debug(f"""PLC Block: {block.Name}
+    Number: {block.Number}
+    ProgrammingLanguage: {block.ProgrammingLanguage}""")
 
     return block
 
 def create_io_system(itf: Siemens.Engineering.HW.Features.NetworkInterface,
                      data: objects.Network,
                      ) -> tuple[Siemens.Engineering.HW.Subnet, Siemens.Engineering.HW.IoSystem]:
+    logger.info(f"Creating ({data.subnet_name} subnet, {data.io_controller} IO Controller)")
+
     subnet: Siemens.Engineering.HW.Subnet = itf.Nodes[0].CreateAndConnectToSubnet(data.subnet_name)
     io_system: Siemens.Engineering.HW.IoSystem = itf.IoControllers[0].CreateIoSystem(data.io_controller)
+
+    logger.info(f"Successfully created ({data.subnet_name} subnet, {data.io_controller} IO Controller)")
+    logger.debug(f"""Subnet: {subnet.Name}
+    NetType: {subnet.NetType}
+    TypeIdentifier: {subnet.TypeIdentifier}
+IO System: {io_system.Name}
+    Number: {io_system.Number}
+    Subnet: {io_system.Subnet.Name}""")
 
     return (subnet, io_system)
 
 def create_tag_table(software_base: Siemens.Engineering.HW.Software, data: objects.TagTable) -> Siemens.Engineering.SW.Tags.PlcTagTable:
-    return software_base.TagTableGroup.TagTables.Create(data.name)
+    logger.info(f"Creating Tag Table: {data.name} ({software_base.Name} Software)")
+
+    table: Siemens.Engineering.SW.Tags.PlcTagTable = software_base.TagTableGroup.TagTables.Create(data.name)
+
+    logger.info(f"Created Tag Table: {data.name} ({software_base.Name} Software)")
+    logger.debug(f"Table: {table.Name}")
+
+    return table
 
 def create_tag(table: Siemens.Engineering.SW.Tags.PlcTagTable, tag: objects.Tag) -> None:
+    logger.info(f"Creating Tag: {tag.tag_name} ({table.Name} Table@0x{tag.logical_address} Address)")
+
     table.Tags.Create(tag.tag_name, tag.data_type, tag.logical_address)
-    print(f"Creating tags... {tag.tag_name}")
+
+    logger.info(f"Created Tag: {tag.tag_name} ({table.Name} Table@0x{tag.logical_address} Address)")
 
 def access_device_item_from_device(device: Siemens.Engineering.HW.Device, index: int = 0) -> Siemens.Engineering.HW.DeviceItem:
     return device.DeviceItems[index]
