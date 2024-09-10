@@ -31,8 +31,8 @@ def project(parent: wx.Window) -> wx.Panel:
     _vsizer.Add(_hsizer,            flag=S.FLAG_SIZER_V,    border=S.BORDER)
 
 
-    output = wx.TextCtrl(panel, style=wx.TE_MULTILINE)
-    _vsizer.Add(output, proportion=1, flag=S.FLAG_SIZER_H, border=S.BORDER)
+    panel.logs: wx.TextCtrl = wx.TextCtrl(panel, style=wx.TE_MULTILINE)
+    _vsizer.Add(panel.logs, proportion=1, flag=S.FLAG_SIZER_H, border=S.BORDER)
 
     panel.SetSizer(_vsizer)
 

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from .modules import objects
+from .modules import objects, log
 from .xml import OB, FB
 from datetime import datetime
 from pathlib import Path
+import logging
 import json
 
 
@@ -25,6 +26,9 @@ class ProjectExistsError(PPError):
 
     def __repr__(self) -> str:
         return f"ProjectExistsError: {self.err}"
+
+log.setup()
+logger = logging.getLogger(__name__)
 
 import clr
 from System.IO import DirectoryInfo, FileInfo
@@ -57,17 +61,25 @@ hwf     = None
 
 def TiaPortal(config: objects.Config) -> Siemens.Engineering.TiaPortal:
     conf = config
+
+    logger.debug(f"config data: {config}")
+
     if conf.enable_ui:
-        print("Starting TIA with UI")
         TIA = tia.TiaPortal(tia.TiaPortalMode.WithUserInterface)
     else:
-        print("Starting TIA without UI")
         TIA = tia.TiaPortal(tia.TiaPortalMode.WithoutUserInterface)
+
+    current_process = TIA.GetCurrentProcess()
+    logger.info(f"Started TIA Portal Openness ({current_process.Id}) {current_process.Mode} at {current_process.AcquisitionTime}")
 
     return TIA
 
 def create_project(tia: Siemens.Engineering.TiaPortal, name: str, parent_directory: Path, replace=False) -> Siemens.Engineering.Project:
+    logger.info(f"Creating project {name} at {parent_directory}...")
+
     existing_project_path: DirectoryInfo = DirectoryInfo(parent_directory.joinpath(name).as_posix())
+
+    # logger.debug(f"")
 
     if existing_project_path.Exists:
         if replace:

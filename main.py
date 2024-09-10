@@ -1,6 +1,8 @@
 from lib.pp import pp
+from lib.pp.modules import log
 from gui import MenuBar, FileDialog, Notebook
 from pathlib import Path
+
 import wx
 import uuid
 import tempfile
@@ -18,7 +20,11 @@ class MainWindow(wx.Frame):
 
         self.SetMinSize((600,480))
 
+        self.logs = notebook.tab_project.logs
+        log.setup(self.logs)
+
         self.Show(True)
+
 
 
     def OnOpen(self, e):
