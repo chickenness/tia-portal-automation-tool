@@ -98,15 +98,12 @@ class MainWindow(wx.Frame):
                     continue
                 if i == 0:
                     subnet, io_system = pp.create_io_system(interfaces[0], network[0])
-                    pp.logger.info(f"Creating Subnet and IO system: {network[0].subnet_name} <{network[0].io_controller}>")
                     continue
                 pp.connect_to_io_system(interfaces[n], subnet, io_system)
-                pp.logger.info(f"Connecting to Subnet and IO system: {network[i].subnet_name} <{network[i].io_controller}>")
 
         
         # Add PLC Blocks from imported Master Copy Library
         for library in config.project.libraries:
-            pp.logger.info(f"Opening library: {library.path}")
             lib = pp.open_library(portal, pp.FileInfo(library.path.as_posix()), library.read_only)
             for master_copy in library.master_copies:
                 pp.logger.info(f"Adding {master_copy.source} to {master_copy.destination}...")
