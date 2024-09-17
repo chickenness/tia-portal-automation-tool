@@ -32,6 +32,10 @@ def project(parent: wx.Window) -> wx.Panel:
 
 
     panel.logs: wx.TextCtrl = wx.TextCtrl(panel, style=wx.TE_MULTILINE)
+    panel.override_path: wx.CheckBox = wx.CheckBox(panel, label="Override Config Project Path")
+    panel.override_path.SetValue(True)
+
+    _vsizer.Add(panel.override_path,  flag=S.FLAG_SIZER_H, border=S.BORDER)
     _vsizer.Add(panel.logs, proportion=1, flag=S.FLAG_SIZER_H, border=S.BORDER)
 
     panel.SetSizer(_vsizer)
