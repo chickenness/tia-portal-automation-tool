@@ -189,6 +189,15 @@ class MainWindow(wx.Frame):
                 pp.import_xml_block(blocks, pp.FileInfo(path.as_posix()))
 
 
+    def OnSelectConfigTree(self, e):
+        item = e.GetItem()
+        value = self.splitter.tree.GetItemData(item)
+
+        if value is not None:
+            self.splitter.value.SetValue(str(value))
+        else:
+            self.splitter.value.SetValue("")
+
 
     def OnExit(self, e):
         self.Close(True)
