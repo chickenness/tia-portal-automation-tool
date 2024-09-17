@@ -19,6 +19,7 @@ class MainWindow(wx.Frame):
         notebook = Notebook.new(self)
         self.tab_conf_textbox = notebook.tab_project.config_path
         self.override_path: wx.CheckBox = notebook.tab_project.override_path
+        self.splitter: wx.SplitterWindow = notebook.tab_config
 
         self.SetMinSize((600,480))
 
@@ -39,7 +40,7 @@ class MainWindow(wx.Frame):
             self.config = pp.parse(self.config_path)
             pp.tia, pp.comp, pp.hwf = pp.import_siemens_module(self.config.dll)
 
-            # self.splitter.tree.populate(self.portal.config)
+            self.splitter.tree.populate(self.config)
 
         except IOError:
             wx.LogError("Cannot open file '%s'." % newfile)
