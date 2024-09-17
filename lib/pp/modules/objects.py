@@ -10,7 +10,27 @@ class Config:
     Adding the key and its type annotation along with its default value should be enough.
     If the said key is another json object, create a new child class Config for it then its functions as well: interpret_class and parse_class.
     """
-    pass
+    def json(self) -> dict:
+        def to_dict(obj):
+                if isinstance(obj, dict):
+                    return {k: to_dict(v) for k, v in obj.items()}
+                elif isinstance(obj, list):
+                    return [to_dict(i) for i in obj]
+                elif isinstance(obj, set):
+                    return {to_dict(i) for i in obj}
+                elif hasattr(obj, '__dict__'):
+                    return {k: to_dict(v) for k, v in obj.__dict__.items()}
+                elif isinstance(obj, (str, int, float, bool)):
+                    return obj
+                else:
+                    return str(obj)
+
+        data: dict = {k: v for k, v in self.__dict__.items() if not k.startswith('__')}
+
+        for k, v in data.items():
+            data[k] = to_dict(v)
+
+        return data
 
 
 @dataclass
