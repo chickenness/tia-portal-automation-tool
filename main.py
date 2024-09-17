@@ -11,12 +11,14 @@ class MainWindow(wx.Frame):
     def __init__(self, parent, title) -> None:
         wx.Frame.__init__(self, parent, title=title, size=(800,600))
         self.config: pp.objects.Config = None
+        self.config_path: str = ""
 
         self.CreateStatusBar()
 
         menubar = MenuBar.new(self)
         notebook = Notebook.new(self)
         self.tab_conf_textbox = notebook.tab_project.config_path
+        self.override_path: wx.CheckBox = notebook.tab_project.override_path
 
         self.SetMinSize((600,480))
 
@@ -28,14 +30,15 @@ class MainWindow(wx.Frame):
 
 
     def OnOpen(self, e):
-        filepath = FileDialog.open_config(self)
-        if not filepath:
+        self.config_path = FileDialog.open_config(self)
+        if not self.config_path:
             return
 
-        self.tab_conf_textbox.write(filepath)
+        self.tab_conf_textbox.write(self.config_path)
         try:
-            self.config = pp.parse(filepath)
+            self.config = pp.parse(self.config_path)
             pp.tia, pp.comp, pp.hwf = pp.import_siemens_module(self.config.dll)
+
             # self.splitter.tree.populate(self.portal.config)
 
         except IOError:
@@ -50,6 +53,14 @@ class MainWindow(wx.Frame):
     def OnRun(self, e):
         if pp.tia == None or pp.comp == None or pp.hwf == None:
             return
+
+        if self.override_path.IsChecked():
+
+            pp.logger.info(f"Overriding Config Project Path: {self.config_path}")
+
+            config_path: Path = Path(self.config_path)
+            self.config.project.directory = config_path.parent
+            self.config.project.name = config_path.stem
 
         config: Config = self.config
 
