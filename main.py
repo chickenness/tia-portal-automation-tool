@@ -1,6 +1,8 @@
 from lib.pp import pp
+from lib.pp.modules import log
 from gui import MenuBar, FileDialog, Notebook
 from pathlib import Path
+
 import wx
 import uuid
 import tempfile
@@ -18,7 +20,11 @@ class MainWindow(wx.Frame):
 
         self.SetMinSize((600,480))
 
+        self.logs = notebook.tab_project.logs
+        log.setup(self.logs, 10)
+
         self.Show(True)
+
 
 
     def OnOpen(self, e):
@@ -66,7 +72,7 @@ class MainWindow(wx.Frame):
                     node: Siemens.Engineeering.HW.Node = network_service.Nodes[0]
                     attributes = {"Address" : data.network_address}
                     pp.set_object_attributes(node, **attributes)
-                    print(f"Added a network address: {data.network_address}")
+                    pp.logger.info(f"Added a network address: {data.network_address}")
                     interfaces.append(network_service)
 
             for device_item in device.DeviceItems:
@@ -92,18 +98,15 @@ class MainWindow(wx.Frame):
                     continue
                 if i == 0:
                     subnet, io_system = pp.create_io_system(interfaces[0], network[0])
-                    print(f"Creating Subnet and IO system: {network[0].subnet_name} <{network[0].io_controller}>")
                     continue
                 pp.connect_to_io_system(interfaces[n], subnet, io_system)
-                print(f"Connecting to Subnet and IO system: {network[i].subnet_name} <{network[i].io_controller}>")
 
         
         # Add PLC Blocks from imported Master Copy Library
         for library in config.project.libraries:
-            print(f"Opening library: {library.path}")
             lib = pp.open_library(portal, pp.FileInfo(library.path.as_posix()), library.read_only)
             for master_copy in library.master_copies:
-                print(f"Adding {master_copy.source} to {master_copy.destination}...")
+                pp.logger.info(f"Adding {master_copy.source} to {master_copy.destination}...")
                 source = pp.find_master_copy_by_name(lib, master_copy.source)
 
                 plc = pp.find_plc_by_name(project, master_copy.destination)
@@ -115,7 +118,7 @@ class MainWindow(wx.Frame):
                 pp.set_object_attributes(copy, **attrs)
 
                 if copy:
-                    print(f"Copied PLC block: {copy.Name}")
+                    pp.logger.info(f"Copied PLC block: {copy.Name}")
 
             for instance in library.instances:
                 networks = {}
