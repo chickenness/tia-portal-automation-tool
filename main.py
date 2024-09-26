@@ -146,7 +146,7 @@ class MainWindow(wx.Frame):
                             fb = pp.create_plc_block_from_mastercopy(block, source)
                             attrs = {"Name": mastercopy.name}
                             pp.set_object_attributes(fb, **attrs)
-                            db = pp.create_instance_db(plc, mastercopy.name, 1, mastercopy.name)
+                            db = pp.create_single_instance_db(plc, mastercopy.name, 1, mastercopy.name)
                             data = {
                                 'fb': mastercopy.name,
                                 'db': db.Name,
@@ -161,7 +161,7 @@ class MainWindow(wx.Frame):
                             source = pp.find_plc_block_by_name(block, mastercopy.source)   
                             if not source:
                                 continue
-                            db = pp.create_instance_db(plc, mastercopy.name, 1, mastercopy.name)
+                            db = pp.create_single_instance_db(plc, mastercopy.name, 1, mastercopy.name)
                             data = {
                                 'fb': mastercopy.name,
                                 'db': db.Name,
