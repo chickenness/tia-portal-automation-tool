@@ -73,6 +73,27 @@ def TiaPortal(config: objects.Config) -> Siemens.Engineering.TiaPortal:
 
     return TIA
 
+
+def DeviceComposition_CreateWithItem(project: Siemens.Engineering.Project, data: objects.Device) -> Siemens.Engineering.HW.Device:
+    device_composition: Siemens.Engineering.HW.DeviceComposition = project.Devices
+    device: Siemens.Engineering.HW.Device = device_composition.CreateWithItem(data.p_typeIdentifier, data.p_name, data.p_deviceName)
+
+    logger.info(f"Created device: ({data.p_deviceName}, {data.p_typeIdentifier, data.p_name}) on {device.Name}")
+
+    return device
+
+def PlcTagTableComposition_Create(software_base: Siemens.Engineering.HW.Software, data: objects.TagTable) -> Siemens.Engineering.SW.Tags.PlcTagTable:
+    logger.info(f"Creating Tag Table: {data.Name} ({software_base.Name} Software)")
+
+    table: Siemens.Engineering.SW.Tags.PlcTagTable = software_base.TagTableGroup.TagTables.Create(data.Name)
+
+    logger.info(f"Created Tag Table: {data.Name} ({software_base.Name} Software)")
+    logger.debug(f"Table: {table.Name}")
+
+    return table
+
+
+
 def create_project(tia: Siemens.Engineering.TiaPortal, name: str, parent_directory: Path, replace=False) -> Siemens.Engineering.Project:
     logger.info(f"Creating project {name} at \"{parent_directory}\"...")
 
@@ -109,13 +130,6 @@ def create_project(tia: Siemens.Engineering.TiaPortal, name: str, parent_directo
     logger.info(f"Created project {name} at {parent_directory}")
 
     return project
-
-def create_device(devices: Siemens.Engineering.HW.DeviceComposition, data: objects.Device) -> Siemens.Engineering.HW.Device:
-    device: Siemens.Engineering.HW.Device = devices.CreateWithItem(data.DeviceItemTypeId, data.DeviceTypeId, data.DeviceItemName)
-
-    logger.info(f"Created device: ({data.DeviceItemName}, {data.DeviceItemTypeId, data.DeviceTypeId}) on {device.Name}")
-
-    return device
 
 def create_and_plug_device_item(hw_object: Siemens.Engineering.HW.HardwareObject,
                                 data: objects.DeviceItem,
@@ -164,22 +178,13 @@ IO System: {io_system.Name}
 
     return (subnet, io_system)
 
-def create_tag_table(software_base: Siemens.Engineering.HW.Software, data: objects.TagTable) -> Siemens.Engineering.SW.Tags.PlcTagTable:
-    logger.info(f"Creating Tag Table: {data.name} ({software_base.Name} Software)")
-
-    table: Siemens.Engineering.SW.Tags.PlcTagTable = software_base.TagTableGroup.TagTables.Create(data.name)
-
-    logger.info(f"Created Tag Table: {data.name} ({software_base.Name} Software)")
-    logger.debug(f"Table: {table.Name}")
-
-    return table
 
 def create_tag(table: Siemens.Engineering.SW.Tags.PlcTagTable, tag: objects.Tag) -> None:
-    logger.info(f"Creating Tag: {tag.tag_name} ({table.Name} Table@0x{tag.logical_address} Address)")
+    logger.info(f"Creating Tag: {tag.Name} ({table.Name} Table@0x{tag.LogicalAddress} Address)")
 
-    table.Tags.Create(tag.tag_name, tag.data_type, tag.logical_address)
+    table.Tags.Create(tag.Name, tag.DataTypeName, tag.LogicalAddress)
 
-    logger.info(f"Created Tag: {tag.tag_name} ({table.Name} Table@0x{tag.logical_address} Address)")
+    logger.info(f"Created Tag: {tag.Name} ({table.Name} Table@0x{tag.LogicalAddress} Address)")
 
 def access_device_item_from_device(device: Siemens.Engineering.HW.Device, index: int = 0) -> Siemens.Engineering.HW.DeviceItem:
     logger.debug(f"Accessing a DeviceItem Index {index} at Device {device.Name}")

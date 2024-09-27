@@ -1,7 +1,12 @@
 from dataclasses import dataclass, field
+from enum import Enum, auto
 from pathlib import Path
 from typing import Any
 
+
+class Source(Enum):
+    CONFIG      = auto
+    MASTERCLASS = auto
 
 @dataclass
 class Config:
@@ -33,16 +38,8 @@ class Config:
         return data
 
 
-@dataclass
-class Tag(Config):
-    tag_name: str                           = ""
-    data_type: str                          = ""
-    logical_address: str                    = ""
 
-@dataclass
-class TagTable(Config):
-    name: str                               = ""
-    tags: list[Tag]                         = field(default_factory=list)
+
 
 @dataclass
 class DeviceItem(Config):
@@ -67,28 +64,27 @@ class DeviceItem(Config):
 
 
 @dataclass
+class Tag(Config):
+    Name: str                               = ""
+    DataTypeName: str                       = ""
+    LogicalAddress: str                     = ""
+
+@dataclass
+class TagTable(Config):
+    Name: str                               = ""
+    Tags: list[Tag]                         = field(default_factory=list)
+
+@dataclass
 class Device(Config):
-    """
-    Found on 7.15.3 around page 213
-
-    |--------------------|--------|--------------------------------------------|
-    | Name               | Type   | Description                                |
-    |--------------------|--------|--------------------------------------------|
-    | DeviceItemTypeId   | string | Type identifier of the device item         |
-    | DeviceTypeId       | string | Type identifier of the device              |
-    | DeviceItemName     | string | Name of the created device item            |
-    | DeviceName         | string | Name of the created device                 |
-    |--------------------|--------|--------------------------------------------|
-    """
-
-    DeviceItemTypeId: str                   = "OrderNumber:6ES7 510-1DJ01-0AB0/V2.0"
-    DeviceTypeId: str                       = "PLC_1"
-    DeviceItemName: str                     = "NewDevice"
-    DeviceName: str                         = ""
+    source: Source                          = Source.CONFIG
     items: list[DeviceItem]                 = field(default_factory=list)
     slots_required: int                     = 2
     network_address: str                    = "192.168.0.112"
-    tag_table: TagTable                     = field(default_factory=TagTable)
+    PLCTags: TagTable                       = field(default_factory=TagTable)
+    p_typeIdentifier: str                   = "OrderNumber:6ES7 510-1DJ01-0AB0/V2.0"
+    p_name: str                             = "PLC_1"
+    p_deviceName: str                       = "NewDevice"
+
 
 
 
