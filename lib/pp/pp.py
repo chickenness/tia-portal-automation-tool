@@ -393,7 +393,7 @@ def import_xml_block(blocks: Siemens.Engineering.SW.Blocks.PlcBlockComposition,
 
     return
 
-def create_instance_db(plc: Siemens.Engineering.HW.Features.SoftwareContainer, name: str,
+def create_single_instance_db(plc: Siemens.Engineering.HW.Features.SoftwareContainer, name: str,
                        number: int, instance_of_name: str) -> Siemens.Engineering.SW.Blocks.InstanceDB:
     logger.debug(f"Creating InstanceDB {{{name}, {number}}} for PlcSoftware {plc.Name}...")
 

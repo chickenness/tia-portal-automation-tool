@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import Any
 
 
 @dataclass
@@ -62,6 +62,10 @@ class DeviceItem(Config):
     Name: str                               = "IO1"
     PositionNumber: int                     = 0
 
+
+
+
+
 @dataclass
 class Device(Config):
     """
@@ -86,6 +90,10 @@ class Device(Config):
     network_address: str                    = "192.168.0.112"
     tag_table: TagTable                     = field(default_factory=TagTable)
 
+
+
+
+
 @dataclass
 class Network(Config):
     address: str                            = "192.168.0.112"
@@ -100,9 +108,31 @@ class MasterCopy(Config):
     name: str                               = ""
     is_mastercopy: bool                     = True
 
+
+
+
+
+# @dataclass
+# class BooleanAttribute(Config):
+#     Name: str                               = ""
+#     SystemDefined: str                      = "true"
+#     value: bool                             = True
+
+@dataclass
+class MultiInstanceDB(Config):
+    Name: str                               = "" 
+    Datatype: str                           = ""
+    Remanence: str                          = "Retain"
+    Accessibility: str                      = "Public"
+    multi_instancedb: list[MultiInstanceDB] = field(default_factory=list)
+    # attribute_list: list[BooleanAttribute]  = [BooleanAttribute("ExternalAccessible"), BooleanAttribute("ExternalVisible"),
+    #                                            BooleanAttribute("ExternalWritable"), BooleanAttribute("UserVisible"),
+    #                                            BooleanAttribute(""), BooleanAttribute("")]
+
 @dataclass
 class Instance(Config):
     block_type: str                         = ""
+    multi_instancedb: list[MultiInstanceDB] = field(default_factory=list)
     name: str                               = ""
     programming_language: str               = ""
     number: int                             = 0
@@ -116,6 +146,9 @@ class Library(Config):
     read_only: bool                         = True
     master_copies: list[MasterCopy]         = field(default_factory=list)
     instances: list[Instance]               = field(default_factory=list)
+
+
+
 
 @dataclass
 class Project(Config):
