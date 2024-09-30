@@ -1,72 +1,143 @@
+from enum import Enum, auto
 import json
 from pathlib import Path
+
+class Source(Enum):
+    MASTERCOPY = auto()
+    PLC = auto()
+
+BLOCK = {
+    "type": dict,
+    "default": {},
+    "schema": {
+        "name" : {"type": str, "default": "Block_1"},
+        "number" : {"type": int, "default": 0},
+        "programming_language" : {"type": str, "default": "LAD"},
+        "source" : {
+            "type": dict,
+            "default": {},
+            "schema": {
+                "from" : {"type": Source, "default": Source.MASTERCOPY},
+                "name" : {"type": str, "default": "MasterCopyObject"},
+            }
+        },
+    }
+}
+
+# Only allows single InstanceDB
+ORGANIZATION_BLOCK = {
+    **BLOCK,
+
+}
+
+# Allows all InstanceDB types
+FUNCTION_BLOCK = {
+    **BLOCK,
+
+}
+
+# Only allows single and Parameter InstanceDB
+FUNCTION = {
+    **BLOCK,
+
+}
+
+PROGRAM_BLOCK = {
+    "type": list,
+    "default": [],
+    "item_schema": {
+        "OB": {"type": dict, "default": ORGANIZATION_BLOCK},
+        "FB": {"type": dict, "default": FUNCTION_BLOCK},
+        "DB": {"type": dict, "default": FUNCTION},
+    }
+}
+
+TAG = {
+    "type": list,
+    "default": [],
+    "item_schema": {
+        "Name": {"type": str, "default": ""},
+        "DataTypeName": {"type": str, "default": ""},
+        "LogicalAddress": {"type": str, "default": ""}
+    }
+}
+
+TAG_TABLE = {
+    "type": dict,
+    "default": {},
+    "schema": {
+        "Name": {"type": str, "default": ""},
+        "Tags": TAG, 
+        }
+}
+
+LOCAL_MODULE = {
+    "type": list,
+    "default": [],
+    "item_schema": {
+        "TypeIdentifier": {"type": str, "default": ""},
+        "Name": {"type": str, "default": ""},
+        "PositionNumber": {"type": int, "default": 0}
+    }
+}
+
+DEVICE = {
+    "type": list,
+    "default": [],
+    "item_schema": {
+        "network_address": {"type": str, "default": "192.168.0.112"},
+        "slots_required": {"type": int, "default": 2},
+        "p_name": {"type": str, "default": "PLC_1"},
+        "p_typeIdentifier": {"type": str, "default": "OrderNumber:6ES7 510-1DJ01-0AB0/V2.0"},
+        "p_deviceName": {"type": str, "default": "NewPlcDevice"},
+        "Program blocks": PROGRAM_BLOCK,
+        "PLC tags": TAG_TABLE,
+        "Local modules": LOCAL_MODULE,
+    }
+}
+
+NETWORK = {
+    "type": list,
+    "default": [],
+    "item_schema": {
+        "address": {"type": str, "default": "192.168.0.112"},
+        "subnet_name": {"type": str, "default": "Profinet"},
+        "io_controller": {"type": str, "default": "PNIO"}
+    }
+}
+
+LIBRARY = {
+    "type": list,
+    "default": [],
+    "item_schema": {
+        "path": {"type": Path, "default": Path()},
+        "read_only": {"type": bool, "default": True},
+    }
+}
+
+
+PROJECT = {
+    "type": dict,
+    "default": {},
+    "schema": {
+        "name": {"type": str, "default": "AwesomeTIA420"},
+        "directory": {"type": Path, "default": Path.home()},
+        "overwrite": {"type": bool, "default": False},
+        "devices": DEVICE,
+        "networks": NETWORK,
+        "libraries": LIBRARY,
+        }
+    }
 
 SCHEMA = {
     "dll": {"type": Path, "default": Path(r'"C:/Program Files/Siemens/Automation/Portal V18/PublicAPI/V18/Siemens.Engineering.dll')},
     "enable_ui": {"type": bool, "default": True},
-    "project": {
-        "type": dict,
-        "default": {},
-        "schema": {
-            "name": {"type": str, "default": "AwesomeTIA420"},
-            "directory": {"type": Path, "default": Path.home()},
-            "overwrite": {"type": bool, "default": False},
-            "devices": {
-                "type": list,
-                "default": [],
-                "item_schema": {
-                    "network_address": {"type": str, "default": "192.168.0.112"},
-                    "slots_required": {"type": int, "default": 2},
-                    "Local modules": {
-                        "type": list,
-                        "default": [],
-                        "item_schema": {
-                            "TypeIdentifier": {"type": str, "default": ""},
-                            "Name": {"type": str, "default": ""},
-                            "PositionNumber": {"type": int, "default": 0}
-                        }
-                    },
-                    "PLC tags": {
-                        "type": dict,
-                        "default": {},
-                        "schema": {
-                            "Name": {"type": str, "default": ""},
-                            "Tags": {
-                                "type": list,
-                                "default": [],
-                                "item_schema": {
-                                    "Name": {"type": str, "default": ""},
-                                    "DataTypeName": {"type": str, "default": ""},
-                                    "LogicalAddress": {"type": str, "default": ""}
-                                }
-                            }
-                        }
-                    },
-                    "p_name": {"type": str, "default": "PLC_1"},
-                    "p_typeIdentifier": {"type": str, "default": "OrderNumber:6ES7 510-1DJ01-0AB0/V2.0"},
-                    "p_deviceName": {"type": str, "default": "NewPlcDevice"},
-                }
-            },
-            "networks": {
-                "type": list,
-                "default": [],
-                "item_schema": {
-                    "address": {"type": str, "default": "192.168.0.112"},
-                    "subnet_name": {"type": str, "default": "Profinet"},
-                    "io_controller": {"type": str, "default": "PNIO"}
-                }
-            },
-            "libraries": {
-                "type": list,
-                "default": [],
-                "item_schema": {
-                    "path": {"type": Path, "default": Path()},
-                    "read_only": {"type": bool, "default": True},
-                }
-            },
-        }
-    }
+    "project": PROJECT,
 }
+
+
+
+
 
 def clean_config(config, schema):
     cleaned_config = {}
