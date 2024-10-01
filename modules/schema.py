@@ -6,10 +6,20 @@ class Source(Enum):
     MASTERCOPY = auto()
     PLC = auto()
 
+class Plc(Enum):
+    OB = auto()
+    FB = auto()
+    FC = auto()
+    DB = auto()
+
+
+
+
 BLOCK = {
     "type": dict,
     "default": {},
     "schema": {
+        "enum" : {"type": Plc, "default": Plc.OB},
         "name" : {"type": str, "default": "Block_1"},
         "number" : {"type": int, "default": 0},
         "programming_language" : {"type": str, "default": "LAD"},
@@ -33,22 +43,21 @@ ORGANIZATION_BLOCK = {
 # Allows all InstanceDB types
 FUNCTION_BLOCK = {
     **BLOCK,
-
 }
 
 # Only allows single and Parameter InstanceDB
 FUNCTION = {
     **BLOCK,
-
 }
 
 PROGRAM_BLOCK = {
     "type": list,
     "default": [],
-    "item_schema": {
-        "OB": {"type": dict, "default": ORGANIZATION_BLOCK},
-        "FB": {"type": dict, "default": FUNCTION_BLOCK},
-        "DB": {"type": dict, "default": FUNCTION},
+    "enum": Plc,
+    "unique_item_schema": {
+        Plc.OB: ORGANIZATION_BLOCK,
+        Plc.FB: FUNCTION_BLOCK,
+        Plc.FC: FUNCTION,
     }
 }
 
@@ -158,6 +167,11 @@ def clean_config(config, schema):
                         clean_config(item, expected_type['item_schema']) if isinstance(item, dict) else item
                         for item in value
                     ]
+                elif expected_type.get('unique_item_schema'):
+                    cleaned_config[key] = [
+                        clean_config(item, expected_type['unique_item_schema'][expected_type.get('enum')[item['enum']]]['schema']) if isinstance(item, dict) else item
+                        for item in value
+                    ]
                 else:
                     cleaned_config[key] = value  # Accept as-is if no item_schema
             elif expected_type['type'] == Path:
@@ -172,6 +186,9 @@ def clean_config(config, schema):
             cleaned_config[key] = json.loads(value)
         elif expected_type['type'] == Path and isinstance(value, str):
             cleaned_config[key] = Path(value)  # Convert string to Path
+        elif expected_type['type'] == Plc and isinstance(value, str):
+            cleaned_config[key] = Plc[value]
+            print('shit')
         else:
             cleaned_config[key] = expected_type['default']
 

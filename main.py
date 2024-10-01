@@ -2,13 +2,14 @@ from modules import schema
 from pathlib import Path
 
 import json
-import wx
+# import wx
 import uuid
 import tempfile
 
 
 
-json_config = Path(r"C:\Users\Chi\Documents\TITUS GLOBAL\Data\configs\HeHeProject.json")
+# json_config = Path(r"C:\Users\Chi\Documents\TITUS GLOBAL\Data\configs\HeHeProject.json")
+json_config = Path(r"C:\Users\Chi\Documents\TITUS GLOBAL\Data\configs\test.json")
 with open(json_config) as file:
     config = json.load(file)
 
