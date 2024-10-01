@@ -8,8 +8,8 @@ import tempfile
 
 
 
-# json_config = Path(r"C:\Users\Chi\Documents\TITUS GLOBAL\Data\configs\HeHeProject.json")
-json_config = Path(r"C:\Users\Chi\Documents\TITUS GLOBAL\Data\configs\test.json")
+json_config = Path(r"C:\Users\Chi\Documents\TITUS GLOBAL\Data\configs\HeHeProject.json")
+# json_config = Path(r"C:\Users\Chi\Documents\TITUS GLOBAL\Data\configs\test.json")
 with open(json_config) as file:
     config = json.load(file)
 

@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 
 class Source(Enum):
+    CONFIG = auto()
     MASTERCOPY = auto()
     PLC = auto()
 
@@ -14,6 +15,21 @@ class Plc(Enum):
 
 
 
+SOURCE = {
+    "type": dict,
+    "default": {},
+    "schema": {
+        "from" : {"type": Source, "default": Source.MASTERCOPY},
+        "name" : {"type": str, "default": ""},
+    }
+}
+
+NETWORK_CALLS = {
+    "type": list,
+    "default": [],
+    "item_schema": {
+    }
+}
 
 BLOCK = {
     "type": dict,
@@ -23,14 +39,8 @@ BLOCK = {
         "name" : {"type": str, "default": "Block_1"},
         "number" : {"type": int, "default": 0},
         "programming_language" : {"type": str, "default": "LAD"},
-        "source" : {
-            "type": dict,
-            "default": {},
-            "schema": {
-                "from" : {"type": Source, "default": Source.MASTERCOPY},
-                "name" : {"type": str, "default": "MasterCopyObject"},
-            }
-        },
+        "source" : SOURCE,
+        "network_calls": PROGRAM_BLOCK,
     }
 }
 
@@ -175,7 +185,7 @@ def clean_config(config, schema):
                 else:
                     cleaned_config[key] = value  # Accept as-is if no item_schema
             elif expected_type['type'] == Path:
-                cleaned_config[key] = Path(value)  # Convert to Path
+                cleaned_config[key] = Path(value)
             else:
                 cleaned_config[key] = value
         elif expected_type['type'] == bool and isinstance(value, str):
@@ -185,10 +195,11 @@ def clean_config(config, schema):
         elif expected_type['type'] == dict and isinstance(value, str):
             cleaned_config[key] = json.loads(value)
         elif expected_type['type'] == Path and isinstance(value, str):
-            cleaned_config[key] = Path(value)  # Convert string to Path
+            cleaned_config[key] = Path(value)
         elif expected_type['type'] == Plc and isinstance(value, str):
             cleaned_config[key] = Plc[value]
-            print('shit')
+        elif expected_type['type'] == Source and isinstance(value, str):
+            cleaned_config[key] = Source[value]
         else:
             cleaned_config[key] = expected_type['default']
 
