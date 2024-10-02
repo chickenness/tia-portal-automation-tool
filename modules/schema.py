@@ -35,14 +35,9 @@ BLOCK = {
         "number" : {"type": "integer", "default": 0},
         "programming_language" : {"type": "string", "default": "LAD"},
         "source" : SOURCE,
-        "network_calls": {"$ref": "#/$defs/blocks"}, 
-    }
-}
+        # "network_calls": {"$ref": "#/$defs/blocks"}, 
 
-PROGRAM_BLOCK = {
-    "type": "object",
-    "required": [],
-    "properties": { "blocks": {"$ref": "#/$defs/blocks"}, }
+    },
 }
 
 TAG = {
@@ -83,7 +78,7 @@ DEVICE = {
         "p_name": {"type": "string", "default": "PLC_1"},
         "p_typeIdentifier": {"type": "string", "default": "OrderNumber:6ES7 510-1DJ01-0AB0/V2.0"},
         "p_deviceName": {"type": "string", "default": "NewPlcDevice"},
-        "Program blocks":{"type": "array", "items": PROGRAM_BLOCK, "default": []},
+        "Program blocks": {"type": "array", "items": {"anyOf": [BLOCK]}, "default": []},
         "PLC tags":{"type": "array", "items": TAG_TABLE, "default": []},
         "Local modules":{"type": "array", "items": LOCAL_MODULE, "default": []},
     }
@@ -125,14 +120,7 @@ SCHEMA = {
     "type": "object",
     "required": ["dll", "project"],
     "$defs": {
-        "blocks":{
-            "type": "array",
-            "items": {
-                "anyOf": [
-                    BLOCK,
-                ]
-            },
-            "default": []},
+        "blocks":{ "type": "array", "items": BLOCK, "default": [] },
     },
     "properties": {
         "dll": {
@@ -154,8 +142,6 @@ def validate_path(validator, path, instance, schema):
 validator = Draft7Validator(SCHEMA)
 validator.VALIDATORS["path"] = validate_path
 
-import json
-
 def apply_defaults_and_filter(config: dict, schema: dict) -> dict[str, Any]:
     filtered_config: dict[str, Any] = {}
 
@@ -171,6 +157,9 @@ def apply_defaults_and_filter(config: dict, schema: dict) -> dict[str, Any]:
         if isinstance(filtered_config[key], list):
             filtered_config[key] = []
             item_schema = value['items']
+            if filtered_config[key] == "Program blocks":
+                print(item_schema)
+                input()
             for item in config.get(key, []):
                 filtered_config[key].append(apply_defaults_and_filter(item, item_schema))
 

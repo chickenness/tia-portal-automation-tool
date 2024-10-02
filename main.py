@@ -15,4 +15,4 @@ with open(json_config) as file:
 
     cleaned_config = schema.clean_config(config, schema.SCHEMA)
 
-print(cleaned_config)
+print(json.dumps(cleaned_config, indent=2))
