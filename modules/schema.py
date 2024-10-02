@@ -175,9 +175,8 @@ def clean_config(config: dict, schema: dict) -> dict[str, Any]:
 
 from schema import Schema, And, Or, Use, Optional, SchemaError
 
-schema_None = None
-
-schema_program_block = {
+schema_program_block = dict()
+schema_program_block.update({
     "name": str,
     Optional("number", default=0): int,
     Optional("programming_language", default="LAD"): And(str, Use(str.upper)),
@@ -185,8 +184,10 @@ schema_program_block = {
         "from": And(str, Use(Source)),
         Optional("name"): str,
     },
-    Optional("network_calls", default=[]): And(list),
-}
+    Optional('network_calls'): [Schema(schema_program_block)]
+})
+
+schema_program_block = Schema(schema_program_block)
 
 schema_plc_tag = {
         "Name": str,
@@ -265,38 +266,3 @@ schema = Schema(
 def validate_config(data):
     return schema.validate(data)
 
-s = None
-
-# Define the schema
-s = Schema(
-    {
-        "name": str,
-        "extra": Schema({
-            Optional("other"): str,
-            Optional("ss"): s  # Reference itself
-        })
-    },
-    name="ss",
-    as_reference=True
-)
-
-# Example data
-d = {
-    'name': 'win',
-    'extra': {
-        "other": "shit",
-        "ss": {
-            "name": "another",  # This must match the structure expected by s
-            "extra": {
-                "other": "more data",
-                "ss": None  # This can also be None if not needed
-            }
-        }
-    }
-}
-
-o = s.validate(d)
-print()
-print(o)
-import json
-print(json.dumps(s.json_schema("https://example.com/my-schema.json"), indent=2))
