@@ -1,5 +1,7 @@
 from enum import Enum, auto
 import json
+import jsonschema
+from jsonschema import validate, Draft7Validator
 from pathlib import Path
 
 class Source(Enum):
@@ -40,7 +42,7 @@ BLOCK = {
         "number" : {"type": int, "default": 0},
         "programming_language" : {"type": str, "default": "LAD"},
         "source" : SOURCE,
-        "network_calls": PROGRAM_BLOCK,
+        # "network_calls": PROGRAM_BLOCK,
     }
 }
 
@@ -149,7 +151,7 @@ PROJECT = {
     }
 
 SCHEMA = {
-    "dll": {"type": Path, "default": Path(r'"C:/Program Files/Siemens/Automation/Portal V18/PublicAPI/V18/Siemens.Engineering.dll')},
+    "dll": {"type": Path, "default": Path(r'C:/Program Files/Siemens/Automation/Portal V18/PublicAPI/V18/Siemens.Engineering.dll')},
     "enable_ui": {"type": bool, "default": True},
     "project": PROJECT,
 }
@@ -205,3 +207,129 @@ def clean_config(config, schema):
 
     return cleaned_config
 
+
+BLOCK = {
+    "type": "object",
+    "required": ["enum", "name", "source"],
+    "properties": {
+        "enum" : {"type": "string", "default": "OB"},
+        "name" : {"type": "string", "default": "Block_1"},
+        "number" : {"type": "integer", "default": 0},
+        "programming_language" : {"type": "string", "default": "LAD"},
+        "source" : {"type": "string", "default": "MASTERCOPY"},
+        "network_calls": {"$ref": "#/$defs/blocks"}, 
+    }
+}
+
+PROGRAM_BLOCK = {
+    "type": "object",
+    "required": [],
+    "properties": { "blocks": {"$ref": "#/$defs/blocks"}, }
+}
+
+TAG = {
+    "type": "object",
+    "required": ["Name", "DataTypeName", "LogicalAddress"],
+    "properties": {
+        "Name": {"type": "string", "default": ""},
+        "DataTypeName": {"type": "string", "default": ""},
+        "LogicalAddress": {"type": "string", "default": ""}
+    }
+}
+
+TAG_TABLE = {
+    "type": "object",
+    "required": ["Name"],
+    "properties": {
+        "Name": {"type": "string", "default": ""},
+        "Tags":{"type": "array", "items": TAG, "default": []},
+        }
+}
+
+LOCAL_MODULE = {
+    "type": "object",
+    "required": [],
+    "properties": {
+        "TypeIdentifier": {"type": "string", "default": ""},
+        "Name": {"type": "string", "default": ""},
+        "PositionNumber": {"type": "integer", "default": 0}
+    }
+}
+
+DEVICE = {
+    "type": "object",
+    "required": ["p_name", "p_typeIdentifier", "p_deviceName"],
+    "properties": {
+        "network_address": {"type": "string", "default": "192.168.0.112", "format": "ipv4"},
+        "slots_required": {"type": "integer", "default": 2},
+        "p_name": {"type": "string", "default": "PLC_1"},
+        "p_typeIdentifier": {"type": "string", "default": "OrderNumber:6ES7 510-1DJ01-0AB0/V2.0"},
+        "p_deviceName": {"type": "string", "default": "NewPlcDevice"},
+        "Program blocks":{"type": "array", "items": PROGRAM_BLOCK, "default": []},
+        "PLC tags":{"type": "array", "items": TAG_TABLE, "default": []},
+        "Local modules":{"type": "array", "items": LOCAL_MODULE, "default": []},
+    }
+}
+
+NETWORK = {
+    "type": "object",
+    "required": ["address", "subnet_name", "io_controller"],
+    "properties": {
+        "address": {"type": "string", "default": "192.168.0.112", "format": "ipv4"},
+        "subnet_name": {"type": "string", "default": "Profinet"},
+        "io_controller": {"type": "string", "default": "PNIO"}
+    }
+}
+
+LIBRARY = {
+    "type": "object",
+    "required": ["path", "read_only"],
+    "properties": {
+        "path": {"type": "string", "default": f"{Path()}", "format": "path"},
+        "read_only": {"type": "boolean", "default": True},
+    }
+}
+
+PROJECT = {
+    "type": "object",
+    "required": ["name", "directory"],
+    "properties": {
+        "name": {"type": "string", "default": "AwesomeTIA420"},
+        "directory": {"type": "string", "default": f"{Path.home()}", "format": "path"},
+        "overwrite": {"type": "boolean", "default": False},
+        "devices":{"type": "array", "items": DEVICE, "default": []},
+        "networks":{"type": "array", "items": NETWORK, "default": []},
+        "libraries": {"type": "array", "items": LIBRARY, "default": []},
+    }
+}
+
+SCHEMA = {
+    "type": "object",
+    "required": ["dll", "enable_ui", "project"],
+    "$defs": {
+        "blocks":{
+            "type": "array",
+            "items": {
+                "anyOf": [
+                    BLOCK,
+                ]
+            },
+            "default": []},
+    },
+    "properties": {
+        "dll": {
+            "type": "string",
+            "default": r"C:/Program Files/Siemens/Automation/Portal V18/PublicAPI/V18/Siemens.Engineering.dll",
+            "format": "path"
+        },
+        "enable_ui": { "type": "boolean", "default": True },
+        "project": PROJECT,
+    }
+}
+
+def validate_path(validator, path, instance, schema):
+    if not isinstance(instance, str):
+        yield jsonschema.ValidationError(f"{instance} is not a string.")
+
+validator = Draft7Validator(SCHEMA)
+validator.VALIDATORS["path"] = validate_path
