@@ -22,6 +22,11 @@ def execute(SE: Siemens.Engineering, config: dict[Any, Any], settings: dict[str,
     current_process = TIA.GetCurrentProcess()
 
     logging.info(f"Started TIA Portal Openness ({current_process.Id}) {current_process.Mode} at {current_process.AcquisitionTime}")
+
+
+
+
+
     logging.info(f"Creating project {config['name']} at \"{config['directory']}\"...")
 
     existing_project_path: DirectoryInfo = DirectoryInfo(config['directory'].joinpath(config['name']).as_posix())
@@ -55,3 +60,32 @@ def execute(SE: Siemens.Engineering, config: dict[Any, Any], settings: dict[str,
     project: Siemens.Engineering.Project = project_composition.Create(project_path, config['name'])
 
     logging.info(f"Created project {config['name']} at {config['directory']}")
+
+
+
+
+
+    devices: list[Siemens.Engineering.HW.Device] = []
+    interfaces: list[Siemens.Engineering.HW.Features.NetworkInterface] = []
+    for device_data in config['devices']:
+        device_composition: Siemens.Engineering.HW.DeviceComposition = project.Devices
+        device: Siemens.Engineering.HW.Device = device_composition.CreateWithItem(device_data['p_typeIdentifier'],
+                                                                                  device_data['p_name'],
+                                                                                  device_data['p_deviceName']
+                                                                                  )
+
+        logging.info(f"Created device: ({device_data['p_deviceName']}, {device_data['p_typeIdentifier']}) on {device.Name}")
+
+        devices.append(device)
+        hw_object: Siemens.Engineering.HW.HardwareObject = device.DeviceItems[0]
+        for module in device_data['Local modules']:
+            logging.info(f"Plugging {module['TypeIdentifier']} on [{module['PositionNumber'] + device_data['slots_required']}]...")
+
+            if hw_object.CanPlugNew(module['TypeIdentifier'], module['Name'], module['PositionNumber'] + device_data['slots_required']):
+                hw_object.PlugNew(module['TypeIdentifier'], module['Name'], module['PositionNumber'] + device_data['slots_required'])
+
+                logging.info(f"{module['TypeIdentifier']} PLUGGED on [{module['PositionNumber'] + device_data['slots_required']}]")
+
+                continue
+
+            logging.info(f"{module['TypeIdentifier']} Not PLUGGED on {module['PositionNumber'] + device_data['slots_required']}")
