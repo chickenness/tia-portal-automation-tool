@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 
 class Source(Enum):
-    NONE = "NONE"
+    AUTO = "AUTO"
     MASTERCOPY = "MASTERCOPY"
     PLC = "PLC"
 
@@ -16,19 +16,46 @@ class Plc(Enum):
 
 from schema import Schema, And, Or, Use, Optional, SchemaError
 
+schema_single_instancedb = Schema({
+    "name": str,
+    Optional("number", default=1): int,
+    "instanceOfName": str
+})
+
+schema_multi_instance_db = Schema({
+
+})
+
 schema_program_block = dict()
 schema_program_block.update({
     "name": str,
     Optional("number", default=0): int,
     Optional("programming_language", default="LAD"): And(str, Use(str.upper)),
-    Optional("source", default={"from": Source.NONE}): {
+    Optional("source", default={"from": Source.AUTO}): {
         "from": And(str, Use(Source)),
         Optional("name"): str,
     },
-    Optional('network_calls'): [Schema(schema_program_block)]
 })
 
-schema_program_block = Schema(schema_program_block)
+schema_program_block_ob = {**schema_program_block}
+schema_program_block_fb = {**schema_program_block}
+schema_program_block_fc = {**schema_program_block}
+schema_program_block_ob.update({
+    Optional('network_calls'): [Schema(schema_program_block)],
+    Optional('instancedb', default={}): schema_single_instancedb,
+})
+schema_program_block_fb.update({
+    Optional('network_calls'): [Schema(schema_program_block)],
+    Optional('instancedb', default={}): Or(schema_single_instancedb,),
+})
+schema_program_block_fc.update({
+    Optional('network_calls'): [Schema(schema_program_block)],
+    Optional('instancedb', default={}): Or(schema_single_instancedb,),
+})
+schema_program_block_ob = Schema(schema_program_block_ob)
+schema_program_block_fb = Schema(schema_program_block_fb)
+schema_program_block_fc = Schema(schema_program_block_fc)
+
 
 schema_plc_tag = {
         "Name": str,
@@ -57,7 +84,7 @@ schema_device_plc = {
         **schema_device,
         "p_deviceName": str, # NewPlcDevice
         Optional("slots_required", default=2): int,
-        Optional("Program blocks", default=[]): And(list, [schema_program_block]),
+        Optional("Program blocks", default=[]): And(list, [Or(schema_program_block_ob,schema_program_block_fb,schema_program_block_fc)]),
         Optional("PLC tags", default=[]): And(list, [schema_plc_tag_table]),
         Optional("Local modules", default=[]): And(list, [schema_module]),
     }
@@ -90,16 +117,17 @@ schema_library = {
 
 schema = Schema(
     {
-        Optional("dll", default=Path(r"C:/Program Files/Siemens/Automation/Portal V18/PublicAPI/V18/Siemens.Engineering.dll")): And(str, Use(Path), lambda p: Path(p)),
-        Optional("enable_ui", default=True): bool,
-        "project": {
-            "name": str,
-            Optional("directory", default=Path.home()): And(str, Use(Path), lambda p: Path(p)),
-            Optional("overwrite", default=False): bool,
-            Optional("devices", default=[]): And(list, [Or(schema_device_plc, schema_device_hmi, schema_device_ionode)]),  # List of DEVICE
-            Optional("networks", default=[]): And(list, [schema_network]),  # List of NETWORK
-            Optional("libraries", default=[]): And(list, [schema_library]),  # List of LIBRARY
-        },
+        # Optional("dll", default=Path(r"C:/Program Files/Siemens/Automation/Portal V18/PublicAPI/V18/Siemens.Engineering.dll")): And(str, Use(Path), lambda p: Path(p)),
+        # Optional("enable_ui", default=True): bool,
+        # "project": {
+        "name": str,
+        Optional("directory", default=Path.home()): And(str, Use(Path), lambda p: Path(p)),
+        Optional("overwrite", default=False): bool,
+        Optional("devices", default=[]): And(list, [Or(schema_device_plc, schema_device_hmi, schema_device_ionode)]),
+        Optional("networks", default=[]): And(list, [schema_network]),
+        Optional("libraries", default=[]): And(list, [schema_library]),
+
+        # },
     },
     ignore_extra_keys=True  
 )
