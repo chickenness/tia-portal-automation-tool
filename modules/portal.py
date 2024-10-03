@@ -71,14 +71,26 @@ def execute(SE: Siemens.Engineering, config: dict[Any, Any], settings: dict[str,
         device_composition: Siemens.Engineering.HW.DeviceComposition = project.Devices
         device: Siemens.Engineering.HW.Device = device_composition.CreateWithItem(device_data['p_typeIdentifier'],
                                                                                   device_data['p_name'],
-                                                                                  device_data['p_deviceName']
+                                                                                  device_data.get('p_deviceName', '')
                                                                                   )
 
-        logging.info(f"Created device: ({device_data['p_deviceName']}, {device_data['p_typeIdentifier']}) on {device.Name}")
+        logging.info(f"Created device: ({device_data.get('p_deviceName', '')}, {device_data['p_typeIdentifier']}) on {device.Name}")
 
         devices.append(device)
         hw_object: Siemens.Engineering.HW.HardwareObject = device.DeviceItems[0]
-        for module in device_data['Local modules']:
+        for module in device_data.get('Local modules', []):
+            logging.info(f"Plugging {module['TypeIdentifier']} on [{module['PositionNumber'] + device_data['slots_required']}]...")
+
+            if hw_object.CanPlugNew(module['TypeIdentifier'], module['Name'], module['PositionNumber'] + device_data['slots_required']):
+                hw_object.PlugNew(module['TypeIdentifier'], module['Name'], module['PositionNumber'] + device_data['slots_required'])
+
+                logging.info(f"{module['TypeIdentifier']} PLUGGED on [{module['PositionNumber'] + device_data['slots_required']}]")
+
+                continue
+
+            logging.info(f"{module['TypeIdentifier']} Not PLUGGED on {module['PositionNumber'] + device_data['slots_required']}")
+
+        for module in device_data.get('Modules', []):
             logging.info(f"Plugging {module['TypeIdentifier']} on [{module['PositionNumber'] + device_data['slots_required']}]...")
 
             if hw_object.CanPlugNew(module['TypeIdentifier'], module['Name'], module['PositionNumber'] + device_data['slots_required']):
@@ -128,7 +140,25 @@ def execute(SE: Siemens.Engineering, config: dict[Any, Any], settings: dict[str,
             if not isinstance(software_base, SE.SW.PlcSoftware):
                 continue
 
-            for tag_table_data in device_data['PLC tags']:
+            for tag_table_data in device_data.get('PLC tags', []):
+                logging.info(f"Creating Tag Table: {tag_table_data['Name']} ({software_base.Name} Software)")
+
+                tag_table: Siemens.Engineering.SW.Tags.PlcTagTable = software_base.TagTableGroup.TagTables.Create(tag_table_data['Name'])
+
+                logging.info(f"Created Tag Table: {tag_table_data['Name']} ({software_base.Name} Software)")
+                logging.debug(f"PLC Tag Table: {tag_table.Name}")
+
+                if not isinstance(tag_table, SE.SW.Tags.PlcTagTable):
+                    continue
+
+                for tag_data in tag_table_data['Tags']:
+                    logging.info(f"Creating Tag: {tag_data['Name']} ({tag_table.Name} Table@0x{tag_data['LogicalAddress']} Address)")
+
+                    tag_table.Tags.Create(tag_data['Name'], tag_data['DataTypeName'], tag_data['LogicalAddress'])
+
+                    logging.info(f"Created Tag: {tag_data['Name']} ({tag_table.Name} Table@0x{tag_data['LogicalAddress']} Address)")
+
+            for tag_table_data in device_data.get('HMI tags', []):
                 logging.info(f"Creating Tag Table: {tag_table_data['Name']} ({software_base.Name} Software)")
 
                 tag_table: Siemens.Engineering.SW.Tags.PlcTagTable = software_base.TagTableGroup.TagTables.Create(tag_table_data['Name'])
