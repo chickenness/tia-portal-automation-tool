@@ -159,19 +159,38 @@ def execute(SE: Siemens.Engineering, config: dict[Any, Any], settings: dict[str,
                     logging.info(f"Created Tag: {tag_data['Name']} ({tag_table.Name} Table@0x{tag_data['LogicalAddress']} Address)")
 
             for tag_table_data in device_data.get('HMI tags', []):
-                logging.info(f"Creating Tag Table: {tag_table_data['Name']} ({software_base.Name} Software)")
+                pass # to be implemented
 
-                tag_table: Siemens.Engineering.SW.Tags.PlcTagTable = software_base.TagTableGroup.TagTables.Create(tag_table_data['Name'])
+    subnet: Siemens.Engineering.HW.Subnet = None
+    io_system: Siemens.Engineering.HW.IoSystem = None
+    for i, network in enumerate(config.get('networks', [])):
+        for itf in interfaces:
+            if itf.Nodes[0].GetAttribute('Address') != network.get('address'): continue
+            if i == 0:
 
-                logging.info(f"Created Tag Table: {tag_table_data['Name']} ({software_base.Name} Software)")
-                logging.debug(f"PLC Tag Table: {tag_table.Name}")
+                logging.info(f"Creating ({network.get('subnet_name')} subnet, {network.get('io_controller')} IO Controller)")
 
-                if not isinstance(tag_table, SE.SW.Tags.PlcTagTable):
-                    continue
+                subnet: Siemens.Engineering.HW.Subnet = itf.Nodes[0].CreateAndConnectToSubnet(network.get('subnet_name'))
+                io_system: Siemens.Engineering.HW.IoSystem = itf.IoControllers[0].CreateIoSystem(network.get('io_controller'))
 
-                for tag_data in tag_table_data['Tags']:
-                    logging.info(f"Creating Tag: {tag_data['Name']} ({tag_table.Name} Table@0x{tag_data['LogicalAddress']} Address)")
+                logging.info(f"Successfully created ({network.get('subnet_name')} subnet, {network.get('io_controller')} IO Controller)")
+                logging.debug(f"""Subnet: {subnet.Name}
+                NetType: {subnet.NetType}
+                TypeIdentifier: {subnet.TypeIdentifier}
+            IO System: {io_system.Name}
+                Number: {io_system.Number}
+                Subnet: {io_system.Subnet.Name}""")
 
-                    tag_table.Tags.Create(tag_data['Name'], tag_data['DataTypeName'], tag_data['LogicalAddress'])
+                continue
 
-                    logging.info(f"Created Tag: {tag_data['Name']} ({tag_table.Name} Table@0x{tag_data['LogicalAddress']} Address)")
+            logging.info(f"Connecting Subnet {subnet.Name} to IoSystem {io_system.Name}")
+
+            itf.Nodes[0].ConnectToSubnet(subnet)
+
+            logging.debug(f"Subnet {subnet.Name} connected to NetworkInterface Subnets")
+
+            if itf.IoConnectors.Count > 0:
+                itf.IoConnectors[0].ConnectToIoSystem(io_system)
+
+                logging.info(f"IoSystem {io_system.Name} connected to NetworkInterface IoConnectors")
+
