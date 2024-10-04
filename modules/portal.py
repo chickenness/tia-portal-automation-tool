@@ -194,3 +194,16 @@ def execute(SE: Siemens.Engineering, config: dict[Any, Any], settings: dict[str,
 
                 logging.info(f"IoSystem {io_system.Name} connected to NetworkInterface IoConnectors")
 
+    for library_data in config.get('libraries', []):
+
+        library_path: FileInfo = FileInfo(library_data.get('path').as_posix())
+
+        logging.info(f"Opening GlobalLibrary: {library_path} (ReadOnly: {library_data.get('is_read_only')})")
+
+        library: Siemens.Engineering.Library.GlobalLibrary = SE.Library.GlobalLibrary
+        if library_data.get('is_read_only'):
+            library = TIA.GlobalLibraries.Open(library_path, SE.OpenMode.ReadOnly) # Read access to the library. Data can be read from the library.
+        else:
+            library = TIA.GlobalLibraries.Open(library_path, SE.OpenMode.ReadWrite) # Read access to the library. Data can be read from the library.
+
+        logging.info(f"Successfully opened GlobalLibrary: {library.Name}")
