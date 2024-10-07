@@ -1,4 +1,4 @@
-from modules import schema, portal
+from modules import config_schema, portal
 from pathlib import Path
 
 import json
@@ -11,7 +11,7 @@ import tempfile
 json_config = Path(r"C:\Users\Chi\Documents\TITUS GLOBAL\Data\configs\HeHeProject.json")
 with open(json_config) as file:
     config = json.load(file)
-    validated_config = schema.validate_config(config)
+    validated_config = config_schema.validate_config(config)
 
 import clr
 from System.IO import DirectoryInfo, FileInfo

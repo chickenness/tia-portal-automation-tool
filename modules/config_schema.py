@@ -1,11 +1,9 @@
 from enum import Enum
-from jsonschema import Draft202012Validator, validators, Draft7Validator, ValidationError
 from pathlib import Path
-from typing import Any
 
 class Source(Enum):
     AUTO = "AUTO"
-    MASTERCOPY = "MASTERCOPY"
+    LIBRARY = "LIBRARY"
     PLC = "PLC"
 
 class Plc(Enum):
@@ -15,6 +13,20 @@ class Plc(Enum):
     DB = "DB"
 
 from schema import Schema, And, Or, Use, Optional, SchemaError
+
+schema_source = {
+    "name": str,
+}
+
+schema_source_plc = Schema({
+    **schema_source,
+    "plc": str, 
+})
+
+schema_source_library = Schema({
+    **schema_source,
+    "library": str, 
+})
 
 schema_single_instancedb = Schema({
     "name": str,
@@ -29,27 +41,23 @@ schema_multi_instance_db = Schema({
 schema_program_block = dict()
 schema_program_block.update({
     "name": str,
+    "type": And(str, Use(Plc)),
     Optional("number", default=0): int,
     Optional("programming_language", default="LAD"): And(str, Use(str.upper)),
-    Optional("source", default={"from": Source.AUTO}): {
-        "from": And(str, Use(Source)),
-        Optional("name"): str,
-    },
+    Optional("source", default=None): Or(schema_source_plc, schema_source_library),
+    Optional('instances', default=[]): [Schema(schema_program_block)],
 })
 
 schema_program_block_ob = {**schema_program_block}
 schema_program_block_fb = {**schema_program_block}
 schema_program_block_fc = {**schema_program_block}
 schema_program_block_ob.update({
-    Optional('network_calls'): [Schema(schema_program_block)],
     Optional('instancedb', default={}): schema_single_instancedb,
 })
 schema_program_block_fb.update({
-    Optional('network_calls'): [Schema(schema_program_block)],
     Optional('instancedb', default={}): Or(schema_single_instancedb,),
 })
 schema_program_block_fc.update({
-    Optional('network_calls'): [Schema(schema_program_block)],
     Optional('instancedb', default={}): Or(schema_single_instancedb,),
 })
 schema_program_block_ob = Schema(schema_program_block_ob)
