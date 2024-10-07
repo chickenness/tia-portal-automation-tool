@@ -1,9 +1,12 @@
 from __future__ import annotations
 
-from . import logger
+from . import logger, xml_builder
 from .config_schema import Plc
+from pathlib import Path
 from typing import Any
 import logging
+import tempfile
+import uuid
 
 logger.setup(None, 10)
 log = logging.getLogger(__name__)
@@ -178,19 +181,26 @@ def execute(SE: Siemens.Engineering, config: dict[Any, Any], settings: dict[str,
 
             for plc_block in device_data.get('Program blocks', []):
                 if not plc_block.get('source'):
-                    match plc_block.get('type'):
-                        case Plc.FB:
-                            fb: SE.SW.Blocks.PlcBlock = software_base.BlockGroup.Blocks.CreateFB(
-                                plc_block.get('name'),
-                                True,
-                                plc_block.get('number'),
-                                getattr(SE.SW.Blocks.ProgrammingLanguage, plc_block.get('programming_language'))
-                            )
+                    xml_data = xml_builder.build(interface="",
+                                                name=plc_block.get('name', 'Block_1'),
+                                                number=plc_block.get('number', 1),
+                                                programming_language=plc_block.get('programming_language', 'LAD'),
+                                                instances="",
+                                                block_type=plc_block.get('type', Plc.FB).value
+                                                )
 
-                            logging.info(f"Added FunctionBlock {fb.Name} to {software_base.Name}")
+                    logging.debug(f"XML data: {xml_data}")
+
+                    filename = uuid.uuid4().hex
+                    path = Path(tempfile.gettempdir()).joinpath(filename)
 
 
+                    with open(path, 'w') as file:
+                        file.write(xml_data)
 
+                        logging.info(f"Written XML data to: {path}")
+
+                    software_base.BlockGroup.Blocks.Import(FileInfo(path.as_posix()), SE.ImportOptions.Override)
 
     subnet: Siemens.Engineering.HW.Subnet = None
     io_system: Siemens.Engineering.HW.IoSystem = None
