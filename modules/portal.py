@@ -183,22 +183,21 @@ def execute(SE: Siemens.Engineering, config: dict[Any, Any], settings: dict[str,
 
             for plc_block in device_data.get('Program blocks', []):
                 if not plc_block.get('source'):
-                    xml_data = xml_builder.build(interface="",
-                                                name=plc_block.get('name'),
-                                                number=plc_block.get('number', 1),
-                                                programming_language=plc_block.get('programming_language', 'LAD'),
-                                                instances="",
-                                                block_type=plc_block.get('type', Plc.FB).value
-                                                )
+                    xml_obj = xml_builder.PlcBlock()
+                    xml = xml_obj.build(name=plc_block.get('name'),
+                              number=plc_block.get('number', 1),
+                              programming_language=plc_block.get('programming_language', 'LAD'),
+                              block_type=plc_block.get('type', Plc.FB).value,
+                    )
 
-                    logging.debug(f"XML data: {xml_data}")
+                    logging.debug(f"XML data: {xml}")
 
                     filename = uuid.uuid4().hex
                     path = Path(tempfile.gettempdir()).joinpath(filename)
 
 
                     with open(path, 'w') as file:
-                        file.write(xml_data)
+                        file.write(xml)
 
                         logging.info(f"Written XML data to: {path}")
 
@@ -209,9 +208,11 @@ def execute(SE: Siemens.Engineering, config: dict[Any, Any], settings: dict[str,
                     continue
 
                 block_source = plc_block.get('source')
-                is_valid_library_source = config_schema.schema_source_library.is_valid(block_source)
 
                 logging.debug(f"Source: {block_source}")
+
+                is_valid_library_source = config_schema.schema_source_library.is_valid(block_source)
+
                 logging.info(f"Checking if PLC Block source is a library: {is_valid_library_source}")
 
                 if is_valid_library_source:
@@ -229,7 +230,12 @@ def execute(SE: Siemens.Engineering, config: dict[Any, Any], settings: dict[str,
                         break
                     continue
                     
-                if config_schema.schema_source_plc.is_valid(plc_block.get('source')):
+                is_valid_plc_source = config_schema.schema_source_plc.is_valid(block_source)
+
+                logging.info(f"Checking if PLC Block source is a plc: {is_valid_plc_source}")
+
+                if is_valid_plc_source:
+                    # TODO:implement this when needed
                     continue
 
     subnet: Siemens.Engineering.HW.Subnet = None

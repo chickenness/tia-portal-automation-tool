@@ -1,42 +1,5 @@
 import xml.etree.ElementTree as ET
 
-def build(interface: str, name: str, number: str, programming_language: str, instances: str, block_type: str) -> str:
-    """
-    A function to represent a base XML document for a specified block type.
-
-    Attributes:
-        interface (str): The interface schema.
-        name (str): The name of the program block.
-        number (str): The number of the program block.
-        programming_language (str): The programming language of the program block.
-        instances (str): Network calls or instances of the programming block.
-        block_type (str): The type of the block (OB, FB, FC).
-
-    Methods:
-        base(interface: str, name: str, number: str, programming_language: str,
-                 instances: str, block_type: str) -> str:
-            Initializes the Base object and generates an XML document string used for importing program blocks to a plc device.
-    """
-
-    xml = '''<?xml version="1.0" encoding="utf-8"?>'''
-    xml += '''<Document>'''
-    xml += f'''<SW.Blocks.{block_type} ID="0">'''
-    xml += '''<AttributeList>'''
-    xml += f'''{interface}'''
-    xml += '''<MemoryLayout>Optimized</MemoryLayout>'''
-    xml += f'''<Name>{name}</Name>'''
-    xml += '''<Namespace />'''
-    xml += f'''<Number>{number}</Number>'''
-    xml += f'''<ProgrammingLanguage>{programming_language}</ProgrammingLanguage>'''
-    xml += '''</AttributeList>'''
-    xml += '''<ObjectList>'''
-    xml += f'''{instances}'''
-    xml += '''</ObjectList>'''
-    xml += f'''</SW.Blocks.{block_type}>'''
-    xml += '''</Document>'''
-
-    return xml
-
 INTERFACE_MEMBER = [ {
         '@Accessibility': 'Public',
         '@Datatype': '"Data_Point"',
@@ -125,24 +88,62 @@ class Interface:
             }
         }
 
-class SWBlocksCompileUnit:
-    def __init__(self, ID: str, programming_language: str) -> None:
-        xml = f'''<SW.Blocks.CompileUnit ID="{ID}" CompositionName="CompileUnits">'''
-        xml += '''<AttributeList>'''
-        xml += f'''<ProgrammingLanguage>{programming_language}</ProgrammingLanguage>'''
-        xml += '''<NetworkSource>'''
-        xml += '''<FlgNet>'''
+class PlcBlock:
+    def __init__(self) -> None:
+        self.xml = '''<?xml version="1.0" encoding="utf-8"?>
+            <Document>
+	            <SW.Blocks ID="0">
+		            <AttributeList>
+			            <Name>default</Name>
+			            <Namespace />
+			            <Number>0</Number>
+			            <ProgrammingLanguage>LAD</ProgrammingLanguage>
+		            </AttributeList>
+		            <ObjectList>
+		            </ObjectList>
+	            </SW.Blocks>
+            </Document>
+            '''        
 
-        xml += '''<Parts>'''
-        xml += '''</Parts>'''
+    def build(self, name: str, number: int, programming_language: str, block_type: str) -> str:
+        root = ET.fromstring(self.xml)
+        SWBlock = root.find('./SW.Blocks')
+        if SWBlock is not None:
+            SWBlock.tag = f"SW.Blocks.{block_type}"
+        AttributeList = root.find('.//AttributeList')
+        if AttributeList is not None:
+            self.set_text(AttributeList, 'Name', name)
+            self.set_text(AttributeList, 'Number', str(number))
+            self.set_text(AttributeList, 'ProgrammingLanguage', programming_language)
 
-        xml += '''<Wires>'''
-        xml += '''</Wires>'''
+        return ET.tostring(root, encoding='utf-8').decode('utf-8')
 
-        xml += '''</FlgNet>'''
-        xml += '''</NetworkSource>'''
-        xml += '''</AttributeList>'''
-        xml += f'''</SW.Blocks.CompileUnit>'''
+    def set_text(self, root: ET.Element, name: str, value: str) -> None:
+        el = root.find(name)
+        if el is not None: el.text = value
+
+
+def instance(id: str, programming_language: str, parts: str, wires: str) -> str:
+    xml = f'''<SW.Blocks.CompileUnit ID="{id}" CompositionName="CompileUnits">'''
+    xml += '''<AttributeList>'''
+    xml += f'''<ProgrammingLanguage>{programming_language}</ProgrammingLanguage>'''
+    xml += '''<NetworkSource>'''
+    xml += '''<FlgNet>'''
+
+    xml += '''<Parts>'''
+    xml += f'''{parts}'''
+    xml += '''</Parts>'''
+
+    xml += '''<Wires>'''
+    xml += f'''{wires}'''
+    xml += '''</Wires>'''
+
+    xml += '''</FlgNet>'''
+    xml += '''</NetworkSource>'''
+    xml += '''</AttributeList>'''
+    xml += f'''</SW.Blocks.CompileUnit>'''
+
+    return xml
 
 class Part:
     def __init__(self) -> str:
