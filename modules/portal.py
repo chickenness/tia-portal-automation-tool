@@ -181,13 +181,18 @@ def execute(SE: Siemens.Engineering, config: dict[Any, Any], settings: dict[str,
             logging.info(f"Adding Program blocks for {software_base.Name}")
             logging.debug(f"Program blocks data: {device_data.get('Program blocks', {})}")
 
-            for plc_block in device_data.get('Program blocks', []):
+            def create_instance(plc_block):
+                for instance in plc_block.get('instances', []):
+                    create_instance(instance)
+
                 if not plc_block.get('source'):
                     xml_obj = xml_builder.PlcBlock()
-                    xml = xml_obj.build(name=plc_block.get('name'),
-                              number=plc_block.get('number', 1),
-                              programming_language=plc_block.get('programming_language', 'LAD'),
-                              block_type=plc_block.get('type', Plc.FB).value,
+                    xml = xml_obj.build(
+                        name=plc_block.get('name'),
+                        number=plc_block.get('number'),
+                        programming_language=plc_block.get('programming_language'),
+                        block_type=plc_block.get('type', Plc.FB).value,
+                        instances=[],
                     )
 
                     logging.debug(f"XML data: {xml}")
@@ -205,7 +210,7 @@ def execute(SE: Siemens.Engineering, config: dict[Any, Any], settings: dict[str,
                     
                     logging.info(f"New PLC Block: {plc_block.get('name')} added to {software_base.Name}")
 
-                    continue
+                    return
 
                 block_source = plc_block.get('source')
 
@@ -228,7 +233,7 @@ def execute(SE: Siemens.Engineering, config: dict[Any, Any], settings: dict[str,
 
                         logging.info(f"New PLC Block {new_block.Name} from Library {library.Name} added to {software_base.Name}")
                         break
-                    continue
+                    return
                     
                 is_valid_plc_source = config_schema.schema_source_plc.is_valid(block_source)
 
@@ -236,7 +241,11 @@ def execute(SE: Siemens.Engineering, config: dict[Any, Any], settings: dict[str,
 
                 if is_valid_plc_source:
                     # TODO:implement this when needed
-                    continue
+                    return
+
+            
+            for plc_block in device_data.get('Program blocks', []):
+                create_instance(plc_block)
 
     subnet: Siemens.Engineering.HW.Subnet = None
     io_system: Siemens.Engineering.HW.IoSystem = None
