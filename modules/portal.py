@@ -8,6 +8,8 @@ import logging
 import tempfile
 import uuid
 
+from modules import config_schema
+
 logger.setup(None, 10)
 log = logging.getLogger(__name__)
 
@@ -182,7 +184,7 @@ def execute(SE: Siemens.Engineering, config: dict[Any, Any], settings: dict[str,
             for plc_block in device_data.get('Program blocks', []):
                 if not plc_block.get('source'):
                     xml_data = xml_builder.build(interface="",
-                                                name=plc_block.get('name', 'Block_1'),
+                                                name=plc_block.get('name'),
                                                 number=plc_block.get('number', 1),
                                                 programming_language=plc_block.get('programming_language', 'LAD'),
                                                 instances="",
@@ -201,6 +203,34 @@ def execute(SE: Siemens.Engineering, config: dict[Any, Any], settings: dict[str,
                         logging.info(f"Written XML data to: {path}")
 
                     software_base.BlockGroup.Blocks.Import(FileInfo(path.as_posix()), SE.ImportOptions.Override)
+                    
+                    logging.info(f"New PLC Block: {plc_block.get('name')} added to {software_base.Name}")
+
+                    continue
+
+                block_source = plc_block.get('source')
+                is_valid_library_source = config_schema.schema_source_library.is_valid(block_source)
+
+                logging.debug(f"Source: {block_source}")
+                logging.info(f"Checking if PLC Block source is a library: {is_valid_library_source}")
+
+                if is_valid_library_source:
+                    for library in TIA.GlobalLibraries:
+
+                        logging.debug(f"Checking Library: {block_source.get('library')}")
+
+                        if library.Name != block_source.get('library'): continue
+                        mastercopy = library.MasterCopyFolder.MasterCopies.Find(block_source.get('name'))
+                        if not mastercopy: continue
+                        new_block = software_base.BlockGroup.Blocks.CreateFrom(mastercopy)
+                        new_block.SetAttribute("Name", plc_block.get('name'))
+
+                        logging.info(f"New PLC Block {new_block.Name} from Library {library.Name} added to {software_base.Name}")
+                        break
+                    continue
+                    
+                if config_schema.schema_source_plc.is_valid(plc_block.get('source')):
+                    continue
 
     subnet: Siemens.Engineering.HW.Subnet = None
     io_system: Siemens.Engineering.HW.IoSystem = None

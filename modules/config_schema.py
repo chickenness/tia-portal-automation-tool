@@ -2,7 +2,6 @@ from enum import Enum
 from pathlib import Path
 
 class Source(Enum):
-    AUTO = "AUTO"
     LIBRARY = "LIBRARY"
     PLC = "PLC"
 
