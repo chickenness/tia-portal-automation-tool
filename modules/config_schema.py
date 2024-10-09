@@ -1,5 +1,6 @@
 from enum import Enum
 from pathlib import Path
+from schema import Schema, And, Or, Use, Optional, SchemaError
 
 class Source(Enum):
     LIBRARY = "LIBRARY"
@@ -11,7 +12,6 @@ class Plc(Enum):
     FC = "FC"
     DB = "DB"
 
-from schema import Schema, And, Or, Use, Optional, SchemaError
 
 schema_source = {
     "name": str,
@@ -44,7 +44,7 @@ schema_program_block.update({
     Optional("number", default=0): int,
     Optional("programming_language", default="LAD"): And(str, Use(str.upper)),
     Optional("source", default=None): Or(schema_source_plc, schema_source_library),
-    Optional('instances', default=[]): [Schema(schema_program_block)],
+    Optional('instances', default=[]): Or(list, [[Schema(schema_program_block)]]),
 })
 
 schema_program_block_ob = {**schema_program_block}
