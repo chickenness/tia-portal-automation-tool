@@ -182,8 +182,9 @@ def execute(SE: Siemens.Engineering, config: dict[Any, Any], settings: dict[str,
             logging.debug(f"Program blocks data: {device_data.get('Program blocks', {})}")
 
             def create_instance(plc_block):
-                for instance in plc_block.get('instances', []):
-                    create_instance(instance)
+                for networks in plc_block.get('instances', []):
+                    for instance in networks:
+                        create_instance(instance)
 
                 if not plc_block.get('source'):
                     xml_obj = xml_builder.PlcBlock()
