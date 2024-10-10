@@ -92,37 +92,29 @@ class Interface:
         }
 
 class XML:
+    def __init__(self, block_type: str, name: str, number: int) -> None:
+        self.root = ET.fromstring("<Document />") 
+        self.SWBlock = ET.SubElement(self.root, f"SW.Blocks.{block_type}", attrib={'ID': str(0)})
+
+        self.AttributeList = ET.SubElement(self.SWBlock, "AttributeList")
+        ET.SubElement(self.AttributeList, "Name").text = name
+        ET.SubElement(self.AttributeList, "Number").text = str(number)
+        ET.SubElement(self.AttributeList, "Namespace")
+
+        if block_type == 'OB':
+            ET.SubElement(self.AttributeList, "SecondaryType").text = "ProgramCycle"
+
     def export(self, root: ET.Element) -> str:
         return ET.tostring(root, encoding='utf-8').decode('utf-8')
 
-    def update_element_texts(self, root: ET.Element, elements: dict[str, str]):
-        for name, text in elements.items():
-            el = root.find(name)
-            if el is not None: el.text = text
-
-    def update_attributes(self, root: ET.Element, element: str, attrs: dict[str, str]):
-        el = root.find(element)
-        if el is None:
-            return
-        for key, value in attrs.items():
-            el.set(key, value)
-
 class PlcBlock(XML):
-    def build(self, name: str, number: int, programming_language: str, block_type: str, instances: list[list[dict[str, Any]]]) -> str:
-        root = ET.fromstring("<Document />")
-        SWBlock = ET.SubElement(root, f"SW.Blocks.{block_type}")
+    def build(self, programming_language: str,  network_sources: list[list[dict[str, Any]]]) -> str:
+        ET.SubElement(self.AttributeList, "ProgrammingLanguage").text = programming_language
 
-        AttributeList = ET.SubElement(SWBlock, "AttributeList")
-        ObjectList = self.generate_object_list(SWBlock, instances, programming_language)
+        # fix this part, no issue but make it consistent
+        self.generate_object_list(self.SWBlock, network_sources, programming_language)
 
-        ET.SubElement(AttributeList, "Name").text = name
-        ET.SubElement(AttributeList, "Number").text = str(number)
-        ET.SubElement(AttributeList, "ProgrammingLanguage").text = programming_language
-
-        if block_type == 'OB':
-            ET.SubElement(AttributeList, "SecondaryType").text = "ProgramCycle"
-        
-        return self.export(root)
+        return self.export(self.root)
 
     def generate_flgnet(self, calls: list[dict[str, Any]], db) -> ET.Element:
         root = ET.fromstring("<FlgNet />")
@@ -170,11 +162,11 @@ class PlcBlock(XML):
 
         return root
 
-    def generate_object_list(self, parent: ET.Element, instances: list[list[dict[str, Any]]], programming_language: str) -> ET.Element:
+    def generate_object_list(self, parent: ET.Element, network_sources: list[list[dict[str, Any]]], programming_language: str) -> ET.Element:
         root = ET.SubElement(parent, "ObjectList")
 
         id_counter = 0
-        for network in instances:
+        for network in network_sources:
             compile_unit = ET.SubElement(root, "SW.Blocks.CompileUnit", attrib={
                 "ID": format(3 + id_counter, 'X'),
                 "CompositionName": "CompileUnits",
@@ -189,3 +181,9 @@ class PlcBlock(XML):
 
         return root
 
+class Database(XML):
+    def build(self, programming_language: str) -> str:
+        ET.SubElement(self.AttributeList, "ProgrammingLanguage").text = programming_language
+        ET.SubElement(self.SWBlock, "ObjectList")
+
+        return self.export(self.root)

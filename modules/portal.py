@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from . import logger, xml_builder
-from .config_schema import Plc
+from . import logger
+from .xml_builder import PlcBlock, Database
+from .config_schema import PlcType, DatabaseType
 from pathlib import Path
 from typing import Any
 import logging
@@ -182,25 +183,25 @@ def execute(SE: Siemens.Engineering, config: dict[Any, Any], settings: dict[str,
             logging.debug(f"Program blocks data: {device_data.get('Program blocks', {})}")
 
             def create_instance(plc_block):
-                for networks in plc_block.get('instances', []):
+                for networks in plc_block.get('network_sources', []):
                     for instance in networks:
                         create_instance(instance)
 
                 if not plc_block.get('source'):
-                    xml_obj = xml_builder.PlcBlock()
+                    xml_obj = PlcBlock(
+                        plc_block.get('type', PlcType.FB).value,
+                        plc_block.get('name'),
+                        plc_block.get('number')
+                    )
                     xml = xml_obj.build(
-                        name=plc_block.get('name'),
-                        number=plc_block.get('number'),
                         programming_language=plc_block.get('programming_language'),
-                        block_type=plc_block.get('type', Plc.FB).value,
-                        instances=[],
+                        network_sources=plc_block.get('network_sources', []),
                     )
 
                     logging.debug(f"XML data: {xml}")
 
                     filename = uuid.uuid4().hex
                     path = Path(tempfile.gettempdir()).joinpath(filename)
-
 
                     with open(path, 'w') as file:
                         file.write(xml)
@@ -246,7 +247,32 @@ def execute(SE: Siemens.Engineering, config: dict[Any, Any], settings: dict[str,
 
             
             for plc_block in device_data.get('Program blocks', []):
+                plc_block['network_sources'] = [blck for blck in plc_block.get('network_sources', []) if blck]
                 create_instance(plc_block)
+                db = plc_block.get('db')
+                if db.get('type') == DatabaseType.GLOBAL:
+                    logging.info(f"Creating GlobalDB '{db.get('name')}' for PlcSoftware {software_base.Name}...")
+
+                    xml_obj = Database(
+                        db['type'].value,
+                        db['name'],
+                        db['number']
+                    )
+                    xml = xml_obj.build(db['programming_language'])
+
+                    logging.debug(f"XML data: {xml}")
+
+                    filename = uuid.uuid4().hex
+                    path = Path(tempfile.gettempdir()).joinpath(filename)
+
+                    with open(path, 'w') as file:
+                        file.write(xml)
+
+                        logging.info(f"Written XML data to: {path}")
+
+                    software_base.BlockGroup.Blocks.Import(FileInfo(path.as_posix()), SE.ImportOptions.Override)
+
+                    logging.info(f"New GlobalDB: {plc_block.get('name')} added to {software_base.Name}")
 
     subnet: Siemens.Engineering.HW.Subnet = None
     io_system: Siemens.Engineering.HW.IoSystem = None

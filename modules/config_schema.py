@@ -2,15 +2,18 @@ from enum import Enum
 from pathlib import Path
 from schema import Schema, And, Or, Use, Optional, SchemaError
 
-class Source(Enum):
+class SourceType(Enum):
     LIBRARY = "LIBRARY"
-    PLC = "PLC"
+    PLC     = "PLC"
 
-class Plc(Enum):
+class PlcType(Enum):
     OB = "OB"
     FB = "FB"
     FC = "FC"
-    DB = "DB"
+
+class DatabaseType(Enum):
+    GLOBAL      = "GlobalDB"
+    INSTANCE    = "InstanceDB"
 
 
 schema_source = {
@@ -27,37 +30,51 @@ schema_source_library = Schema({
     "library": str, 
 })
 
-schema_single_instancedb = Schema({
+
+schema_database = {
+    "type": And(str, Use(DatabaseType)),
     "name": str,
-    Optional("number", default=1): int,
-    "instanceOfName": str
+    "programming_language": And(str, Use(str.upper)),
+    Optional("number", default=0): int,
+}
+
+schema_globaldb = Schema(schema_database)
+schema_instancedb = Schema({
+    **schema_database,
+    "instanceOfName": str,
 })
+
+
+# <Address Area="DB" Type="Reset_8" BlockNumber="9" BitOffset="0" Informative="true" />
 
 schema_multi_instance_db = Schema({
 
 })
 
-schema_program_block = dict()
-schema_program_block.update({
+schema_program_block = {
     "name": str,
-    "type": And(str, Use(Plc)),
+    "programming_language": And(str, Use(str.upper)),
     Optional("number", default=0): int,
-    Optional("programming_language", default="LAD"): And(str, Use(str.upper)),
+}
+
+schema_program_block.update({
+    "type": And(str, Use(PlcType)),
     Optional("source", default=None): Or(schema_source_plc, schema_source_library),
-    Optional('instances', default=[]): Or(list, [[Schema(schema_program_block)]]),
+    Optional('network_sources', default=[]): And(list, [[Schema(schema_program_block)]]),
 })
 
+        # Optional("directory", default=Path.home()): And(str, Use(Path), lambda p: Path(p)),
 schema_program_block_ob = {**schema_program_block}
 schema_program_block_fb = {**schema_program_block}
 schema_program_block_fc = {**schema_program_block}
 schema_program_block_ob.update({
-    Optional('instancedb', default={}): schema_single_instancedb,
+    Optional('db', default={}): Or(schema_globaldb, schema_instancedb),
 })
 schema_program_block_fb.update({
-    Optional('instancedb', default={}): Or(schema_single_instancedb,),
+    Optional('db', default={}): Or(schema_globaldb, schema_instancedb, schema_multi_instance_db),
 })
 schema_program_block_fc.update({
-    Optional('instancedb', default={}): Or(schema_single_instancedb,),
+    Optional('db', default={}): Or(schema_globaldb, schema_instancedb,),
 })
 schema_program_block_ob = Schema(schema_program_block_ob)
 schema_program_block_fb = Schema(schema_program_block_fb)
