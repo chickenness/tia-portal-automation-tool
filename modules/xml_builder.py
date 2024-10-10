@@ -1,6 +1,8 @@
 from typing import Any
 import xml.etree.ElementTree as ET
 
+from modules.config_schema import PlcType
+
 INTERFACE_MEMBER = [ {
         '@Accessibility': 'Public',
         '@Datatype': '"Data_Point"',
@@ -133,7 +135,7 @@ class PlcBlock(XML):
             Call = ET.SubElement(Parts, "Call", attrib={"UId": str(21 + uid_counter)})
             CallInfo = ET.SubElement(Call, "CallInfo", attrib={
                 "Name": instance.get('name', 'Block_1'),
-                "BlockType": instance.get('type', 'FB'),
+                "BlockType": instance.get('type', PlcType.FB).value,
             })
             Instance = ET.SubElement(CallInfo, "Instance", attrib={
                 "Scope": "LocalVariable",
