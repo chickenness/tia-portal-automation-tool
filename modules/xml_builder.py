@@ -1,7 +1,7 @@
 from typing import Any
 import xml.etree.ElementTree as ET
 
-from modules.config_schema import PlcType
+from modules.config_schema import PlcType, DatabaseType
 
 INTERFACE_MEMBER = [ {
         '@Accessibility': 'Public',
@@ -116,24 +116,30 @@ class PlcBlock(XML):
 
         return self.export(self.root)
 
-    def generate_flgnet(self, calls: list[dict[str, Any]], db) -> ET.Element:
+    def generate_flgnet(self, calls: list[dict[str, Any]]) -> ET.Element:
         root = ET.fromstring("<FlgNet />")
         Parts = ET.SubElement(root, "Parts")
         Wires = ET.SubElement(root, "Wires")
 
         uid_counter = 0
         # create Parts
+
+# <Address Area="DB" Type="Reset_8" BlockNumber="9" BitOffset="0" Informative="true" />
+        from pprint import pprint
+
         for instance in calls:
+            db = instance['db']
             Call = ET.SubElement(Parts, "Call", attrib={"UId": str(21 + uid_counter)})
             CallInfo = ET.SubElement(Call, "CallInfo", attrib={
-                "Name": instance.get('name', 'Block_1'),
+                "Name": db.get('instanceOfName', instance['name']),
                 "BlockType": instance.get('type', PlcType.FB).value,
             })
             Instance = ET.SubElement(CallInfo, "Instance", attrib={
-                "Scope": "LocalVariable",
+                "Scope": "GlobalVariable" if db.get('type') == DatabaseType.INSTANCE else "LocalVariable",
                 "UId": str(22 + uid_counter),
             })
-            Component = ET.SubElement(Instance, "Component", attrib={"Name": "PASSIVE"})
+            ET.SubElement(Instance, "Component", attrib={"Name": db.get('name', f"{instance['name']}_DB")})
+            
             # TODO: implement Parameter for Multi InstanceDB
 
             uid_counter += 2
@@ -173,7 +179,7 @@ class PlcBlock(XML):
             })
             AttributeList = ET.SubElement(compile_unit, "AttributeList")
             NetworkSource = ET.SubElement(AttributeList, "NetworkSource")
-            NetworkSource.append(self.generate_flgnet(network, {}))
+            NetworkSource.append(self.generate_flgnet(network))
 
             ET.SubElement(AttributeList, "ProgrammingLanguage").text = programming_language
 

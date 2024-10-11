@@ -42,10 +42,13 @@ schema_globaldb = Schema(schema_database)
 schema_instancedb = Schema({
     **schema_database,
     "instanceOfName": str,
+    Optional("data", {}): Schema({
+        Optional("Address", default="DB"): str,
+        Optional("BlockNumber", default=1): int,
+        Optional("BitOffset", default=0): int,
+        Optional("Informative", default=True): bool,
+    }),
 })
-
-
-# <Address Area="DB" Type="Reset_8" BlockNumber="9" BitOffset="0" Informative="true" />
 
 schema_multi_instance_db = Schema({
 
@@ -58,7 +61,7 @@ schema_program_block = {
 }
 
 schema_program_block.update({
-    "type": And(str, Use(PlcType)),
+    "type": And(str, Or(Use(PlcType), Use(DatabaseType))),
     Optional("source", default=None): Or(schema_source_plc, schema_source_library),
     Optional('network_sources', default=[]): And(list, [[Schema(schema_program_block)]]),
 })
@@ -68,15 +71,15 @@ schema_program_block_ob = {**schema_program_block}
 schema_program_block_fb = {**schema_program_block}
 schema_program_block_fc = {**schema_program_block}
 schema_program_block_ob.update({
-    Optional('db', default={}): Or(schema_globaldb, schema_instancedb),
+    Optional('db', default={}): schema_instancedb,
     Optional('network_sources', default=[]): And(list, [[Schema(schema_program_block_ob)]]),
 })
 schema_program_block_fb.update({
-    Optional('db', default={}): Or(schema_globaldb, schema_instancedb, schema_multi_instance_db),
+    Optional('db', default={}): Or(schema_instancedb, schema_multi_instance_db),
     Optional('network_sources', default=[]): And(list, [[Schema(schema_program_block_fb)]]),
 })
 schema_program_block_fc.update({
-    Optional('db', default={}): Or(schema_globaldb, schema_instancedb,),
+    Optional('db', default={}): Or(schema_instancedb,),
     Optional('network_sources', default=[]): And(list, [[Schema(schema_program_block_fc)]]),
 })
 schema_program_block_ob = Schema(schema_program_block_ob)
@@ -111,8 +114,7 @@ schema_device_plc = {
         **schema_device,
         "p_deviceName": str, # NewPlcDevice
         Optional("slots_required", default=2): int,
-        # Optional("Program blocks", default=[]): And(list, [Schema(schema_program_block)]),
-        Optional("Program blocks", default=[]): And(list, [Or(schema_program_block_ob,schema_program_block_fb,schema_program_block_fc)]),
+        Optional("Program blocks", default=[]): And(list, [Or(schema_program_block_ob,schema_program_block_fb,schema_program_block_fc, schema_globaldb)]),
         Optional("PLC tags", default=[]): And(list, [schema_plc_tag_table]),
         Optional("Local modules", default=[]): And(list, [schema_module]),
     }
