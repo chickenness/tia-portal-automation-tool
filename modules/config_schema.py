@@ -69,12 +69,15 @@ schema_program_block_fb = {**schema_program_block}
 schema_program_block_fc = {**schema_program_block}
 schema_program_block_ob.update({
     Optional('db', default={}): Or(schema_globaldb, schema_instancedb),
+    Optional('network_sources', default=[]): And(list, [[Schema(schema_program_block_ob)]]),
 })
 schema_program_block_fb.update({
     Optional('db', default={}): Or(schema_globaldb, schema_instancedb, schema_multi_instance_db),
+    Optional('network_sources', default=[]): And(list, [[Schema(schema_program_block_fb)]]),
 })
 schema_program_block_fc.update({
     Optional('db', default={}): Or(schema_globaldb, schema_instancedb,),
+    Optional('network_sources', default=[]): And(list, [[Schema(schema_program_block_fc)]]),
 })
 schema_program_block_ob = Schema(schema_program_block_ob)
 schema_program_block_fb = Schema(schema_program_block_fb)
@@ -108,6 +111,7 @@ schema_device_plc = {
         **schema_device,
         "p_deviceName": str, # NewPlcDevice
         Optional("slots_required", default=2): int,
+        # Optional("Program blocks", default=[]): And(list, [Schema(schema_program_block)]),
         Optional("Program blocks", default=[]): And(list, [Or(schema_program_block_ob,schema_program_block_fb,schema_program_block_fc)]),
         Optional("PLC tags", default=[]): And(list, [schema_plc_tag_table]),
         Optional("Local modules", default=[]): And(list, [schema_module]),

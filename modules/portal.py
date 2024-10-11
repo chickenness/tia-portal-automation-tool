@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from . import logger
-from .xml_builder import PlcBlock, Database
+from .xml_builder import PlcBlock, GlobalDB
 from .config_schema import PlcType, DatabaseType
 from pathlib import Path
 from typing import Any
@@ -253,7 +253,7 @@ def execute(SE: Siemens.Engineering, config: dict[Any, Any], settings: dict[str,
                 if db.get('type') == DatabaseType.GLOBAL:
                     logging.info(f"Creating GlobalDB '{db.get('name')}' for PlcSoftware {software_base.Name}...")
 
-                    xml_obj = Database(
+                    xml_obj = GlobalDB(
                         db['type'].value,
                         db['name'],
                         db['number']
