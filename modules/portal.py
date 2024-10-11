@@ -212,6 +212,32 @@ def execute(SE: Siemens.Engineering, config: dict[Any, Any], settings: dict[str,
                     
                     logging.info(f"New PLC Block: {plc_block.get('name')} added to {software_base.Name}")
 
+
+                    db = plc_block.get('db')
+                    if db.get('type') == DatabaseType.INSTANCE:
+                        logging.info(f"Creating InstanceDB '{db.get('name')}' for PlcSoftware {software_base.Name}...")
+
+                        xml_obj = InstanceDB(
+                            db['type'].value,
+                            db['name'],
+                            db['number']
+                        )
+                        xml =  xml_obj.build(db['programming_language'], db['instanceOfName'])
+
+                        logging.debug(f"XML data: {xml}")
+
+                        filename = uuid.uuid4().hex
+                        path = Path(tempfile.gettempdir()).joinpath(filename)
+
+                        with open(path, 'w') as file:
+                            file.write(xml)
+
+                            logging.info(f"Written XML data to: {path}")
+
+                        software_base.BlockGroup.Blocks.Import(FileInfo(path.as_posix()), SE.ImportOptions.Override)
+
+                        logging.info(f"New InstanceDB: {plc_block.get('name')} added to {software_base.Name}")
+
                     return
 
                 block_source = plc_block.get('source')
@@ -274,30 +300,6 @@ def execute(SE: Siemens.Engineering, config: dict[Any, Any], settings: dict[str,
 
                     logging.info(f"New GlobalDB: {plc_block.get('name')} added to {software_base.Name}")
 
-
-                if db.get('type') == DatabaseType.INSTANCE:
-                    logging.info(f"Creating GlobalDB '{db.get('name')}' for PlcSoftware {software_base.Name}...")
-
-                    xml_obj = InstanceDB(
-                        db['type'].value,
-                        db['name'],
-                        db['number']
-                    )
-                    xml =  xml_obj.build(db['programming_language'], db['instanceOfName'])
-
-                    logging.debug(f"XML data: {xml}")
-
-                    filename = uuid.uuid4().hex
-                    path = Path(tempfile.gettempdir()).joinpath(filename)
-
-                    with open(path, 'w') as file:
-                        file.write(xml)
-
-                        logging.info(f"Written XML data to: {path}")
-
-                    software_base.BlockGroup.Blocks.Import(FileInfo(path.as_posix()), SE.ImportOptions.Override)
-
-                    logging.info(f"New GlobalDB: {plc_block.get('name')} added to {software_base.Name}")
 
     subnet: Siemens.Engineering.HW.Subnet = None
     io_system: Siemens.Engineering.HW.IoSystem = None
