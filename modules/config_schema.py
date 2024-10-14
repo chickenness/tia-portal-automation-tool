@@ -35,7 +35,7 @@ schema_database = {
     "type": And(str, Use(DatabaseType)),
     "name": str,
     "programming_language": And(str, Use(str.upper)),
-    Optional("number", default=0): int,
+    Optional("number", default=1): int,
 }
 
 schema_globaldb = Schema(schema_database)

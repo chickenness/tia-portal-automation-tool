@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from . import logger
-from .xml_builder import InstanceDB, PlcBlock, GlobalDB
+from .xml_builder import PlcBlock, GlobalDB
 from .config_schema import PlcType, DatabaseType
 from pathlib import Path
 from typing import Any
@@ -217,26 +217,9 @@ def execute(SE: Siemens.Engineering, config: dict[Any, Any], settings: dict[str,
                     if db.get('type') == DatabaseType.INSTANCE:
                         logging.info(f"Creating InstanceDB '{db.get('name')}' for PlcSoftware {software_base.Name}...")
 
-                        xml_obj = InstanceDB(
-                            db['type'].value,
-                            db['name'],
-                            db['number']
-                        )
-                        xml =  xml_obj.build(db['programming_language'], db['instanceOfName'])
+                        software_base.BlockGroup.Blocks.CreateInstanceDB(db['name'], True, db.get('number', 1), db['instanceOfName'])
 
-                        logging.debug(f"XML data: {xml}")
-
-                        filename = uuid.uuid4().hex
-                        path = Path(tempfile.gettempdir()).joinpath(filename)
-
-                        with open(path, 'w') as file:
-                            file.write(xml)
-
-                            logging.info(f"Written XML data to: {path}")
-
-                        software_base.BlockGroup.Blocks.Import(FileInfo(path.as_posix()), SE.ImportOptions.Override)
-
-                        logging.info(f"New InstanceDB: {plc_block.get('name')} added to {software_base.Name}")
+                    logging.info(f"New Single InstanceDB: {plc_block.get('name')} added to {software_base.Name}")
 
                     return
 

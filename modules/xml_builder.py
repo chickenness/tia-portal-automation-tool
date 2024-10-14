@@ -145,10 +145,12 @@ class PlcBlock(XML):
             uid_counter += 2
 
         # create Wires
+        e = 1
         for i, instance in enumerate(calls):
-            Wire = ET.SubElement(Wires, "Wire", attrib={'UId': str(22 + uid_counter + i)})
+            Wire = ET.SubElement(Wires, "Wire", attrib={'UId': str(21 + uid_counter + i + e)})
             if i == 0:
                 ET.SubElement(Wire, "OpenCon", attrib={'UId': str(21 + uid_counter)})
+                # ET.SubElement(Wire, "Powerrail")
                 ET.SubElement(Wire, "NameCon", attrib={
                     'UId': str(21 + i),
                     'Name': 'en'
@@ -191,20 +193,5 @@ class GlobalDB(XML):
     def build(self, programming_language: str) -> str:
         ET.SubElement(self.AttributeList, "ProgrammingLanguage").text = programming_language
         ET.SubElement(self.SWBlock, "ObjectList")
-
-        return self.export(self.root)
-
-class InstanceDB(GlobalDB):
-    def build(self, programming_language: str, instanceofName: str) -> str:
-        super().build(programming_language)
-
-        ET.SubElement(self.AttributeList, "InstanceOfName").text = instanceofName
-        ET.SubElement(self.AttributeList, "InstanceOfType").text = "FB"
-        Interface = ET.SubElement(self.AttributeList, "Interface")
-        Sections = ET.SubElement(Interface, "Sections", attrib={"xmlns": "http://www.siemens.com/automation/Openness/SW/Interface/v5"})
-        ET.SubElement(Sections, "Section", attrib={"Name": "Input"})
-        ET.SubElement(Sections, "Section", attrib={"Name": "Output"})
-        ET.SubElement(Sections, "Section", attrib={"Name": "InOut"})
-        ET.SubElement(Sections, "Section", attrib={"Name": "Static"})
 
         return self.export(self.root)
