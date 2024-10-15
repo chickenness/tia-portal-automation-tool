@@ -98,11 +98,13 @@ class XML:
 
         self.AttributeList = ET.SubElement(self.SWBlock, "AttributeList")
         ET.SubElement(self.AttributeList, "Name").text = name
-        ET.SubElement(self.AttributeList, "Number").text = str(number)
+        Number = ET.SubElement(self.AttributeList, "Number")
+        Number.text = str(number)
         ET.SubElement(self.AttributeList, "Namespace")
 
         if block_type == 'OB':
             ET.SubElement(self.AttributeList, "SecondaryType").text = "ProgramCycle"
+            Number.text = "1" if ((number > 1 and number < 123) or number == 0) else str(number)
 
     def export(self, root: ET.Element) -> str:
         return ET.tostring(root, encoding='utf-8').decode('utf-8')
