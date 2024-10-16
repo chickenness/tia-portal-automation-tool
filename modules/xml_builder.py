@@ -25,9 +25,9 @@ class PlcBlock(XML):
         # Interface
         Interface = ET.SubElement(self.AttributeList, "Interface")
         Sections = ET.SubElement(Interface, "Sections", attrib={"xmlns": "http://www.siemens.com/automation/Openness/SW/Interface/v5"})
-        InputSection = ET.SubElement(Sections, "Input")
-        TempSection = ET.SubElement(Sections, "Temp")
-        ConstantSection = ET.SubElement(Sections, "Constant")
+        InputSection = ET.SubElement(Sections, "Section", attrib={"Name": "Input"})
+        TempSection = ET.SubElement(Sections, "Section", attrib={"Name": "Temp"})
+        ConstantSection = ET.SubElement(Sections, "Section", attrib={"Name": "Constant"})
 
         if block_type == 'OB':
             ET.SubElement(self.AttributeList, "SecondaryType").text = "ProgramCycle"
@@ -43,9 +43,9 @@ class PlcBlock(XML):
                 "Informative": "True",
             })
         if block_type == 'FB':
-            OutputSection = ET.SubElement(Sections, "Output")
-            InOutSection = ET.SubElement(Sections, "InOut")
-            StaticSection = ET.SubElement(Sections, "Static")
+            OutputSection = ET.SubElement(Sections, "Section", attrib={"Name": "Output"})
+            InOutSection = ET.SubElement(Sections, "Section", attrib={"Name": "InOut"})
+            StaticSection = ET.SubElement(Sections, "Section", attrib={"Name": "Static"})
 
 
     def build(self, programming_language: str,  network_sources: list[list[dict[str, Any]]]) -> str:
