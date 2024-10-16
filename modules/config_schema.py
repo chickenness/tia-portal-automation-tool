@@ -53,7 +53,8 @@ schema_instancedb = Schema({
 })
 
 schema_multi_instance_db = Schema({
-
+    "type": And(str, Use(DatabaseType)),
+    "sections": And(list, list[dict]), # does not accept empty sections
 })
 
 schema_program_block = {
