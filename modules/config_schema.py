@@ -14,6 +14,7 @@ class PlcType(Enum):
 class DatabaseType(Enum):
     GLOBAL      = "GlobalDB"
     INSTANCE    = "InstanceDB"
+    MULTI       = "MultiDB"
 
 
 schema_source = {
