@@ -188,15 +188,28 @@ def execute(SE: Siemens.Engineering, config: dict[Any, Any], settings: dict[str,
                         create_instance(instance)
 
                 if not plc_block.get('source'):
-                    xml_obj = PlcBlock(
-                        plc_block.get('type', PlcType.FB).value,
-                        plc_block.get('name'),
-                        plc_block.get('number')
-                    )
-                    xml = xml_obj.build(
-                        programming_language=plc_block.get('programming_language'),
-                        network_sources=plc_block.get('network_sources', []),
-                    )
+                    xml = None
+                    match plc_block.get('type'):
+                        case PlcType.FB | PlcType.OB | PlcType.FC:
+                            xml_obj = PlcBlock(
+                                plc_block.get('type', PlcType.FB).value,
+                                plc_block.get('name'),
+                                plc_block.get('number')
+                            )
+                            xml = xml_obj.build(
+                                programming_language=plc_block.get('programming_language'),
+                                network_sources=plc_block.get('network_sources', []),
+                            )
+                        case DatabaseType.GLOBAL:
+                            xml_obj = GlobalDB(
+                                plc_block.get('type', PlcType.FB).value,
+                                plc_block.get('name'),
+                                plc_block.get('number')
+                            )
+                            xml = xml_obj.build(plc_block.get('programming_language'))
+
+                    if not xml:
+                        return
 
                     logging.debug(f"XML data: {xml}")
 

@@ -126,6 +126,9 @@ class PlcBlock(XML):
         return root
 
 class GlobalDB(XML):
+    def __init__(self, block_type: str, name: str, number: int) -> None:
+        super().__init__(block_type, name, number)
+
     def build(self, programming_language: str) -> str:
         ET.SubElement(self.AttributeList, "ProgrammingLanguage").text = programming_language
         ET.SubElement(self.SWBlock, "ObjectList")
