@@ -9,22 +9,29 @@ class XML:
         self.SWBlock = ET.SubElement(self.root, f"SW.Blocks.{block_type}", attrib={'ID': str(0)})
 
         self.AttributeList = ET.SubElement(self.SWBlock, "AttributeList")
-        Interface = ET.SubElement(self.AttributeList, "Interface")
         ET.SubElement(self.AttributeList, "Name").text = name
-        Number = ET.SubElement(self.AttributeList, "Number")
-        Number.text = str(number)
+        self.Number = ET.SubElement(self.AttributeList, "Number")
+        self.Number.text = str(number)
         ET.SubElement(self.AttributeList, "Namespace")
 
+
+    def export(self, root: ET.Element) -> str:
+        return ET.tostring(root, encoding='utf-8').decode('utf-8')
+
+class PlcBlock(XML):
+    def __init__(self, block_type: str, name: str, number: int) -> None:
+        super().__init__(block_type, name, number)
+
         # Interface
-        Sections = ET.SubElement(Interface, "Sections")
-        Sections.set('xmlns', "http://www.siemens.com/automation/Openness/SW/Interface/v5")
+        Interface = ET.SubElement(self.AttributeList, "Interface")
+        Sections = ET.SubElement(Interface, "Sections", attrib={"xmlns": "http://www.siemens.com/automation/Openness/SW/Interface/v5"})
         InputSection = ET.SubElement(Sections, "Input")
         TempSection = ET.SubElement(Sections, "Temp")
         ConstantSection = ET.SubElement(Sections, "Constant")
 
         if block_type == 'OB':
             ET.SubElement(self.AttributeList, "SecondaryType").text = "ProgramCycle"
-            Number.text = "1" if ((number > 1 and number < 123) or number == 0) else str(number)
+            self.Number.text = "1" if ((number > 1 and number < 123) or number == 0) else str(number)
             ET.SubElement(InputSection, "Member", attrib={
                 "Name": "Initial_Call",
                 "Datatype": "Bool",
@@ -41,10 +48,6 @@ class XML:
             StaticSection = ET.SubElement(Sections, "Static")
 
 
-    def export(self, root: ET.Element) -> str:
-        return ET.tostring(root, encoding='utf-8').decode('utf-8')
-
-class PlcBlock(XML):
     def build(self, programming_language: str,  network_sources: list[list[dict[str, Any]]]) -> str:
         ET.SubElement(self.AttributeList, "ProgrammingLanguage").text = programming_language
 
@@ -60,10 +63,6 @@ class PlcBlock(XML):
 
         uid_counter = 0
         # create Parts
-
-# <Address Area="DB" Type="Reset_8" BlockNumber="9" BitOffset="0" Informative="true" />
-        from pprint import pprint
-
         for instance in calls:
             db = instance['db']
             Call = ET.SubElement(Parts, "Call", attrib={"UId": str(21 + uid_counter)})
