@@ -5,6 +5,8 @@ from modules.config_schema import PlcType, DatabaseType
 
 class XML:
     def __init__(self, block_type: str, name: str, number: int) -> None:
+        self.plc_type = PlcType[block_type]
+
         self.root = ET.fromstring("<Document />") 
         self.SWBlock = ET.SubElement(self.root, f"SW.Blocks.{block_type}", attrib={'ID': str(0)})
 
@@ -29,7 +31,7 @@ class PlcBlock(XML):
         TempSection = ET.SubElement(Sections, "Section", attrib={"Name": "Temp"})
         ConstantSection = ET.SubElement(Sections, "Section", attrib={"Name": "Constant"})
 
-        if block_type == 'OB':
+        if self.plc_type == PlcType.OB:
             ET.SubElement(self.AttributeList, "SecondaryType").text = "ProgramCycle"
             self.Number.text = "1" if ((number > 1 and number < 123) or number == 0) else str(number)
             ET.SubElement(InputSection, "Member", attrib={
@@ -42,10 +44,10 @@ class PlcBlock(XML):
                 "Datatype": "Bool",
                 "Informative": "True",
             })
-        if block_type == 'FB':
+        if self.plc_type == PlcType.FB:
             OutputSection = ET.SubElement(Sections, "Section", attrib={"Name": "Output"})
             InOutSection = ET.SubElement(Sections, "Section", attrib={"Name": "InOut"})
-            StaticSection = ET.SubElement(Sections, "Section", attrib={"Name": "Static"})
+            self.StaticSection = ET.SubElement(Sections, "Section", attrib={"Name": "Static"})
 
 
     def build(self, programming_language: str,  network_sources: list[list[dict[str, Any]]]) -> str:
@@ -53,6 +55,24 @@ class PlcBlock(XML):
 
         # fix this part, no issue but make it consistent
         self.generate_object_list(self.SWBlock, network_sources, programming_language)
+        
+        if self.plc_type == PlcType.FB:
+            for networks in network_sources:
+                for instance in networks:
+                    if not instance.get('db'):
+                        continue
+                    if not instance['db']['type'] == DatabaseType.MULTI:
+                        continue
+                    sections = instance['db']['sections']
+                    for section in sections:
+                        name = section.get('name')
+                        members = section.get('members')
+                        if not name:
+                            continue
+                        if name == "Static":
+                            for member in members:
+                                print(member)
+
 
         return self.export(self.root)
 
