@@ -15,6 +15,7 @@ class DatabaseType(Enum):
     GLOBAL      = "GlobalDB"
     INSTANCE    = "InstanceDB"
     MULTI       = "MultiDB"
+    LOCAL       = "LOCAL"
 
 
 schema_source = {

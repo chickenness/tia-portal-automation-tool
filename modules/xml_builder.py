@@ -3,108 +3,43 @@ import xml.etree.ElementTree as ET
 
 from modules.config_schema import PlcType, DatabaseType
 
-INTERFACE_MEMBER = [ {
-        '@Accessibility': 'Public',
-        '@Datatype': '"Data_Point"',
-        '@Informative': False,
-        '@Name': 'Data_Point_Instance',
-        '@Remanence': 'NonRetain',
-        'AttributeList': {
-            'BooleanAttribute': [
-                { '$': True,
-                    '@Informative': False,
-                    '@Name': 'ExternalAccessible',
-                    '@SystemDefined': True },
-                { '$': True,
-                    '@Informative': False,
-                    '@Name': 'ExternalVisible',
-                    '@SystemDefined': True },
-                { '$': True,
-                    '@Informative': False,
-                    '@Name': 'ExternalWritable',
-                    '@SystemDefined': True },
-                { '$': True,
-                    '@Informative': True,
-                    '@Name': 'UserVisible',
-                    '@SystemDefined': True },
-                { '$': False,
-                    '@Informative': True,
-                    '@Name': 'UserReadOnly',
-                    '@SystemDefined': True },
-                { '$': True,
-                    '@Informative': True,
-                    '@Name': 'UserDeletable',
-                    '@SystemDefined': True },
-                { '$': True,
-                    '@Informative': False,
-                    '@Name': 'SetPoint',
-                    '@SystemDefined': True }
-            ]
-        },
-       'Sections': [
-            { 'Section': [
-                    { '@Name': 'Input',
-                        'Member': [
-                            {
-                                '@Accessibility': 'Public',
-                                '@Datatype': 'Bool',
-                                '@Informative': False,
-                                '@Name': 'Gate ' '2',
-                                '@Remanence': 'NonRetain'
-                            },
-                            {
-                                '@Accessibility': 'Public',
-                                '@Datatype': 'Bool',
-                                '@Informative': False,
-                                '@Name': 'Gate ' '1',
-                                '@Remanence': 'NonRetain'
-                            }
-                        ] },
-                    { '@Name': 'Output',
-                        'Member': [
-                            {
-                                '@Accessibility': 'Public',
-                                '@Datatype': 'Bool',
-                                '@Informative': False,
-                                '@Name': 'Open',
-                                '@Remanence': 'NonRetain'
-                            }
-                        ] },
-                    { '@Name': 'InOut' },
-                    { '@Name': 'Static' }
-                ] }
-        ]
-    } ]
-
-class Interface:
-    def __init__(self, member: dict) -> str:
-        xml = {
-            'Sections': {
-                'Section': [
-                    {'@Name': 'Input'},
-                    {'@Name': 'Output'},
-                    {'@Name': 'InOut'},
-                    {'@Name': 'Static', 'Member': member},
-                    {'@Name': 'Temp'},
-                    {'@Name': 'Constant'}
-                ]
-            }
-        }
-
 class XML:
     def __init__(self, block_type: str, name: str, number: int) -> None:
         self.root = ET.fromstring("<Document />") 
         self.SWBlock = ET.SubElement(self.root, f"SW.Blocks.{block_type}", attrib={'ID': str(0)})
 
         self.AttributeList = ET.SubElement(self.SWBlock, "AttributeList")
+        Interface = ET.SubElement(self.AttributeList, "Interface")
         ET.SubElement(self.AttributeList, "Name").text = name
         Number = ET.SubElement(self.AttributeList, "Number")
         Number.text = str(number)
         ET.SubElement(self.AttributeList, "Namespace")
 
+        # Interface
+        Sections = ET.SubElement(Interface, "Sections")
+        Sections.set('xmlns', "http://www.siemens.com/automation/Openness/SW/Interface/v5")
+        InputSection = ET.SubElement(Sections, "Input")
+        TempSection = ET.SubElement(Sections, "Temp")
+        ConstantSection = ET.SubElement(Sections, "Constant")
+
         if block_type == 'OB':
             ET.SubElement(self.AttributeList, "SecondaryType").text = "ProgramCycle"
             Number.text = "1" if ((number > 1 and number < 123) or number == 0) else str(number)
+            ET.SubElement(InputSection, "Member", attrib={
+                "Name": "Initial_Call",
+                "Datatype": "Bool",
+                "Informative": "True",
+            })
+            ET.SubElement(InputSection, "Remanence", attrib={
+                "Name": "Initial_Call",
+                "Datatype": "Bool",
+                "Informative": "True",
+            })
+        if block_type == 'FB':
+            OutputSection = ET.SubElement(Sections, "Output")
+            InOutSection = ET.SubElement(Sections, "InOut")
+            StaticSection = ET.SubElement(Sections, "Static")
+
 
     def export(self, root: ET.Element) -> str:
         return ET.tostring(root, encoding='utf-8').decode('utf-8')
