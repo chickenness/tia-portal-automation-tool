@@ -71,8 +71,16 @@ class PlcBlock(XML):
                             continue
                         if name == "Static":
                             for member in members:
-                                print(member)
-
+                                el = ET.SubElement(self.StaticSection, "Member", attrib={
+                                    "Name": member['Name'],
+                                    "Datatype": member['Datatype'],
+                                })
+                                attriblist = ET.SubElement(el, "AttributeList")
+                                for boolattr in member['AttributeList'].get('BooleanAttribute', []):
+                                    ET.SubElement(attriblist, "BooleanAttribute", attrib={
+                                        "Name": boolattr['Name'],
+                                        "SystemDefined": str(boolattr['SystemDefined']).lower(),
+                                    }).text = str(boolattr['$']).lower()
 
         return self.export(self.root)
 
