@@ -52,9 +52,24 @@ schema_instancedb = Schema({
     }),
 })
 
+schema_sections_members_attributelist = Schema({
+    "BooleanAttribute": list[dict],
+})
+
+schema_sections_members = Schema({
+    "Name": str,
+    "Datatype": str,
+    "AttributeList": dict,
+})
+
+schema_sections = Schema({
+    "name": str,
+    "members": And(list, [schema_sections_members]),
+})
+
 schema_multi_instance_db = Schema({
     "type": And(str, Use(DatabaseType)),
-    "sections": And(list, list[dict]), # does not accept empty sections
+    "sections": And(list, [schema_sections]),
 })
 
 schema_program_block = {
