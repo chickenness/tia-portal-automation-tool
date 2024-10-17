@@ -202,7 +202,7 @@ def execute(SE: Siemens.Engineering, config: dict[Any, Any], settings: dict[str,
                             )
                         case DatabaseType.GLOBAL:
                             xml_obj = GlobalDB(
-                                plc_block.get('type', PlcType.FB).value,
+                                plc_block.get('type', DatabaseType.GLOBAL).value,
                                 plc_block.get('name'),
                                 plc_block.get('number')
                             )
@@ -227,7 +227,7 @@ def execute(SE: Siemens.Engineering, config: dict[Any, Any], settings: dict[str,
 
 
                     db = plc_block.get('db')
-                    if db.get('type') == DatabaseType.INSTANCE:
+                    if db.get('type') == DatabaseType.SINGLE:
                         logging.info(f"Creating InstanceDB '{db.get('name')}' for PlcSoftware {software_base.Name}...")
 
                         software_base.BlockGroup.Blocks.CreateInstanceDB(db['name'], True, db.get('number', 1), db['instanceOfName'])

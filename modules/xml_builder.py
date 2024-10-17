@@ -5,7 +5,10 @@ from modules.config_schema import PlcType, DatabaseType
 
 class XML:
     def __init__(self, block_type: str, name: str, number: int) -> None:
-        self.plc_type = PlcType[block_type]
+        if block_type in ["OB", "FB", "FC"]:
+            self.plc_type = PlcType[block_type]
+        else:
+            self.plc_type = DatabaseType[block_type]
 
         self.root = ET.fromstring("<Document />") 
         self.SWBlock = ET.SubElement(self.root, f"SW.Blocks.{block_type}", attrib={'ID': str(0)})
@@ -27,25 +30,25 @@ class PlcBlock(XML):
         # Interface
         Interface = ET.SubElement(self.AttributeList, "Interface")
         Sections = ET.SubElement(Interface, "Sections", attrib={"xmlns": "http://www.siemens.com/automation/Openness/SW/Interface/v5"})
-        InputSection = ET.SubElement(Sections, "Section", attrib={"Name": "Input"})
+        self.InputSection = ET.SubElement(Sections, "Section", attrib={"Name": "Input"})
         TempSection = ET.SubElement(Sections, "Section", attrib={"Name": "Temp"})
         ConstantSection = ET.SubElement(Sections, "Section", attrib={"Name": "Constant"})
 
         if self.plc_type == PlcType.OB:
             ET.SubElement(self.AttributeList, "SecondaryType").text = "ProgramCycle"
             self.Number.text = "1" if ((number > 1 and number < 123) or number == 0) else str(number)
-            ET.SubElement(InputSection, "Member", attrib={
+            ET.SubElement(self.InputSection, "Member", attrib={
                 "Name": "Initial_Call",
                 "Datatype": "Bool",
                 "Informative": "True",
             })
-            ET.SubElement(InputSection, "Remanence", attrib={
+            ET.SubElement(self.InputSection, "Remanence", attrib={
                 "Name": "Initial_Call",
                 "Datatype": "Bool",
                 "Informative": "True",
             })
         if self.plc_type == PlcType.FB:
-            OutputSection = ET.SubElement(Sections, "Section", attrib={"Name": "Output"})
+            self.OutputSection = ET.SubElement(Sections, "Section", attrib={"Name": "Output"})
             InOutSection = ET.SubElement(Sections, "Section", attrib={"Name": "InOut"})
             self.StaticSection = ET.SubElement(Sections, "Section", attrib={"Name": "Static"})
 
@@ -81,6 +84,19 @@ class PlcBlock(XML):
                                         "Name": boolattr['Name'],
                                         "SystemDefined": str(boolattr['SystemDefined']).lower(),
                                     }).text = str(boolattr['$']).lower()
+                        if name == "Input":
+                            for member in members:
+                                el = ET.SubElement(self.InputSection, "Member", attrib={
+                                    "Name": member['Name'],
+                                    "Datatype": member['Datatype'],
+                                })
+                        if name == "Output":
+                            for member in members:
+                                el = ET.SubElement(self.OutputSection, "Member", attrib={
+                                    "Name": member['Name'],
+                                    "Datatype": member['Datatype'],
+                                })
+
 
         return self.export(self.root)
 
@@ -99,7 +115,7 @@ class PlcBlock(XML):
                 "BlockType": instance.get('type', PlcType.FB).value,
             })
             Instance = ET.SubElement(CallInfo, "Instance", attrib={
-                "Scope": "GlobalVariable" if db.get('type') == DatabaseType.INSTANCE else "LocalVariable",
+                "Scope": "GlobalVariable" if db.get('type') == DatabaseType.SINGLE else "LocalVariable",
                 "UId": str(22 + uid_counter),
             })
             ET.SubElement(Instance, "Component", attrib={"Name": db.get('name', f"{instance['name']}_DB")})

@@ -12,9 +12,9 @@ class PlcType(Enum):
     FC = "FC"
 
 class DatabaseType(Enum):
-    GLOBAL      = "GlobalDB"
-    INSTANCE    = "InstanceDB"
-    MULTI       = "MultiDB"
+    GLOBAL      = "GLOBAL"
+    SINGLE      = "SINGLE"
+    MULTI       = "MULTI"
     LOCAL       = "LOCAL"
 
 
@@ -59,7 +59,7 @@ schema_sections_members_attributelist = Schema({
 schema_sections_members = Schema({
     "Name": str,
     "Datatype": str,
-    "AttributeList": dict,
+    Optional("AttributeList", {}): dict,
 })
 
 schema_sections = Schema({
