@@ -60,43 +60,7 @@ class PlcBlock(XML):
         self.generate_object_list(self.SWBlock, network_sources, programming_language)
         
         if self.plc_type == PlcType.FB:
-            for networks in network_sources:
-                for instance in networks:
-                    if not instance.get('db'):
-                        continue
-                    if not instance['db']['type'] == DatabaseType.MULTI:
-                        continue
-                    sections = instance['db']['sections']
-                    for section in sections:
-                        name = section.get('name')
-                        members = section.get('members')
-                        if not name:
-                            continue
-                        if name == "Static":
-                            for member in members:
-                                el = ET.SubElement(self.StaticSection, "Member", attrib={
-                                    "Name": member['Name'],
-                                    "Datatype": member['Datatype'],
-                                })
-                                attriblist = ET.SubElement(el, "AttributeList")
-                                for boolattr in member['AttributeList'].get('BooleanAttribute', []):
-                                    ET.SubElement(attriblist, "BooleanAttribute", attrib={
-                                        "Name": boolattr['Name'],
-                                        "SystemDefined": str(boolattr['SystemDefined']).lower(),
-                                    }).text = str(boolattr['$']).lower()
-                        if name == "Input":
-                            for member in members:
-                                el = ET.SubElement(self.InputSection, "Member", attrib={
-                                    "Name": member['Name'],
-                                    "Datatype": member['Datatype'],
-                                })
-                        if name == "Output":
-                            for member in members:
-                                el = ET.SubElement(self.OutputSection, "Member", attrib={
-                                    "Name": member['Name'],
-                                    "Datatype": member['Datatype'],
-                                })
-
+            self.generate_multi_instancedb(network_sources)
 
         return self.export(self.root)
 
@@ -168,6 +132,23 @@ class PlcBlock(XML):
             id_counter += 5
 
         return root
+
+    def generate_multi_instancedb(self, network_sources: list[list[dict[str, Any]]]):
+        for networks in network_sources:
+            for instance in networks:
+                if not instance.get('db'):
+                    continue
+                if not instance['db']['type'] == DatabaseType.MULTI:
+                    continue
+                el = ET.SubElement(self.StaticSection, "Member", attrib={
+                    "Name": f"{instance['name']}_Instance",
+                    "Datatype": f'"{instance["name"]}"',
+                })
+                ET.SubElement(ET.SubElement(el, "AttributeList"), "BooleanAttribute", attrib={
+                    "Name": "SetPoint",
+                    "SystemDefined": "true",
+                }).text = "true"
+
 
 class GlobalDB(XML):
     def __init__(self, block_type: str, name: str, number: int) -> None:
