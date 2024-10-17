@@ -1,211 +1,138 @@
-from lib.pp import pp
-from lib.pp.modules import log
-from gui import MenuBar, FileDialog, Notebook
+from modules import config_schema, portal
 from pathlib import Path
 
-import wx
-import uuid
-import tempfile
-
-class MainWindow(wx.Frame):
-    def __init__(self, parent, title) -> None:
-        wx.Frame.__init__(self, parent, title=title, size=(800,600))
-        self.config: pp.objects.Config = None
-        self.config_path: str = ""
-
-        self.CreateStatusBar()
-
-        menubar = MenuBar.new(self)
-        notebook = Notebook.new(self)
-        self.tab_conf_textbox = notebook.tab_project.config_path
-        self.override_path: wx.CheckBox = notebook.tab_project.override_path
-        self.splitter: wx.SplitterWindow = notebook.tab_config
-
-        self.SetMinSize((600,480))
-
-        self.logs = notebook.tab_project.logs
-        log.setup(self.logs, 10)
-
-        self.Show(True)
+import json
+# import wx
 
 
 
-    def OnOpen(self, e):
-        self.config_path = FileDialog.open_config(self)
-        if not self.config_path:
-            return
+json_config = Path(r"C:\Users\Chi\Documents\TITUS GLOBAL\Data\configs\HeHeProject.json")
+with open(json_config) as file:
+    config = json.load(file)
+    validated_config = config_schema.validate_config(config)
 
-        self.tab_conf_textbox.write(self.config_path)
-        try:
-            self.config = pp.parse(self.config_path)
-            pp.tia, pp.comp, pp.hwf = pp.import_siemens_module(self.config.dll)
+import clr
+from System.IO import DirectoryInfo, FileInfo
 
-            self.splitter.tree.populate(self.config)
+DLL_PATH: Path = Path(r"C:/Program Files/Siemens/Automation/Portal V18/PublicAPI/V18/Siemens.Engineering.dll")
+clr.AddReference(DLL_PATH.as_posix())
+import Siemens.Engineering as SE
 
-        except IOError:
-            wx.LogError("Cannot open file '%s'." % newfile)
+portal.execute(
+    SE,
+    validated_config,
+    {
+        "DirectoryInfo": DirectoryInfo,
+        "FileInfo": FileInfo,
+        "enable_ui": True,
+    }
+)
 
-    def OnClose(self, e):
-        pp.tia = None
-        pp.comp = None
-        pp.hwf = None
-        self.config = None
+# from pprint import pprint
+# pprint(validated_config)
 
-    def OnRun(self, e):
-        if pp.tia == None or pp.comp == None or pp.hwf == None:
-            return
-
-        if self.override_path.IsChecked():
-
-            pp.logger.info(f"Overriding Config Project Path: {self.config_path}")
-
-            config_path: Path = Path(self.config_path)
-            self.config.project.directory = config_path.parent
-            self.config.project.name = config_path.stem
-
-        config: Config = self.config
-
-        portal = pp.TiaPortal(config)
-        project = pp.create_project(portal, config.project.name, config.project.directory, config.project.overwrite)
-
-        devices: list[Siemens.Engineering.HW.Device] = []
-        interfaces: list[Siemens.Engineering.HW.Features.NetworkInterface] = []
-        for data in config.project.devices:
-            device_composition: Siemens.Engineering.HW.DeviceComposition = project.Devices
-            device: Siemens.Engineering.HW.Device = pp.create_device(device_composition, data)
-            devices.append(device)
-            hw_object: Siemens.Engineering.HW.HardwareObject = device.DeviceItems[0]
-            for data_dev_item in data.items:
-                pp.create_and_plug_device_item(hw_object, data_dev_item, data.slots_required)
-            device_items = pp.access_device_item_from_device(device, 1).DeviceItems
-            for item in device_items:
-                network_service = pp.access_network_interface_feature(item)
-                if type(network_service) is pp.hwf.NetworkInterface:
-                    node: Siemens.Engineeering.HW.Node = network_service.Nodes[0]
-                    attributes = {"Address" : data.network_address}
-                    pp.set_object_attributes(node, **attributes)
-                    pp.logger.info(f"Added a network address: {data.network_address}")
-                    interfaces.append(network_service)
-
-            for device_item in device.DeviceItems:
-                software_container: Siemens.Engineering.HW.Features.SoftwareContainer = pp.access_software_container(device_item)
-                if not software_container:
-                    continue
-                software_base: Siemens.Engineering.HW.Software = software_container.Software
-                if not isinstance(software_base, pp.tia.SW.PlcSoftware):
-                    continue
-                tag_table = pp.create_tag_table(software_base, data.tag_table)
-                if not isinstance(tag_table, pp.tia.SW.Tags.PlcTagTable):
-                    continue
-                for tag in data.tag_table.tags:
-                    pp.create_tag(tag_table, tag)
-
-        subnet: Siemens.Engineering.HW.Subnet = None
-        io_system: Siemens.Engineering.HW.IoSystem = None
-        network: list[pp.objects.Network] = config.project.networks
-
-        for i in range(len(network)):
-            for n in range(len(interfaces)):
-                if interfaces[n].Nodes[0].GetAttribute('Address') != network[i].address:
-                    continue
-                if i == 0:
-                    subnet, io_system = pp.create_io_system(interfaces[0], network[0])
-                    continue
-                pp.connect_to_io_system(interfaces[n], subnet, io_system)
-
-        
-        # Add PLC Blocks from imported Master Copy Library
-        for library in config.project.libraries:
-            lib = pp.open_library(portal, pp.FileInfo(library.path.as_posix()), library.read_only)
-            for master_copy in library.master_copies:
-                pp.logger.info(f"Adding {master_copy.source} to {master_copy.destination}...")
-                source = pp.find_master_copy_by_name(lib, master_copy.source)
-
-                plc = pp.find_plc_by_name(project, master_copy.destination)
-                if not plc:
-                    continue
-                block = plc.BlockGroup.Blocks
-                copy = pp.create_plc_block_from_mastercopy(block, source)
-                attrs = {"Name": master_copy.name}
-                pp.set_object_attributes(copy, **attrs)
-
-                if copy:
-                    pp.logger.info(f"Copied PLC block: {copy.Name}")
-
-            for instance in library.instances:
-                networks = {}
-                for network, mastercopies in instance.networks.items():
-                    lines = []
-                    for mastercopy in mastercopies:
-                        if mastercopy.is_mastercopy:
-                            source = pp.find_master_copy_by_name(lib, mastercopy.source)
-                            plc = pp.find_plc_by_name(project, mastercopy.destination)
-                            if not plc:
-                                continue
-                            block = plc.BlockGroup.Blocks
-                            fb = pp.create_plc_block_from_mastercopy(block, source)
-                            attrs = {"Name": mastercopy.name}
-                            pp.set_object_attributes(fb, **attrs)
-                            db = pp.create_instance_db(plc, mastercopy.name, 1, mastercopy.name)
-                            data = {
-                                'fb': mastercopy.name,
-                                'db': db.Name,
-                                'type': mastercopy.block_type,
-                            }
-                            lines.append(data)
-                        else:
-                            plc = pp.find_plc_by_name(project, mastercopy.destination)
-                            if not plc:
-                                continue
-                            block = plc.BlockGroup.Blocks
-                            source = pp.find_plc_block_by_name(block, mastercopy.source)   
-                            if not source:
-                                continue
-                            db = pp.create_instance_db(plc, mastercopy.name, 1, mastercopy.name)
-                            data = {
-                                'fb': mastercopy.name,
-                                'db': db.Name,
-                                'type': mastercopy.block_type,
-                            }
-                            lines.append(data)
-                    networks[len(networks)+1] = lines
-
-                match instance.block_type:
-                    case "SW.Blocks.OB" | "OB":
-                        xml = pp.OB.generate(instance.name, instance.number, instance.programming_language, networks, instance.xml_path)
-                       
-                    case "SW.Blocks.FB" | "FB":
-                        xml = pp.FB.generate(instance.name, instance.number, instance.programming_language, networks, instance.xml_path)
-
-                    case _:
-                        xml = pp.OB.generate(instance.name, instance.number, instance.programming_language, networks, instance.xml_path)
-
-                filename = uuid.uuid4().hex
-                path = Path(tempfile.gettempdir()).joinpath(filename)
-                with open(path, 'w') as file:
-                    file.write(xml)
-                plc = pp.find_plc_by_name(project, instance.plc_block)
-                blocks = plc.BlockGroup.Blocks
-                pp.import_xml_block(blocks, pp.FileInfo(path.as_posix()))
-
-
-    def OnSelectConfigTree(self, e):
-        item = e.GetItem()
-        value = self.splitter.tree.GetItemData(item)
-
-        if value is not None:
-            self.splitter.value.SetValue(str(value))
-        else:
-            self.splitter.value.SetValue("")
-
-
-    def OnExit(self, e):
-        self.Close(True)
-        self.Destroy()
-    
-
-if __name__ == '__main__':
-    app = wx.App(False)
-    frame = MainWindow(None, title="TIA Portal Automation Tool")
-    app.MainLoop()
-
+# from modules import xml_builder
+# from modules.config_schema import PlcType, DatabaseType
+#
+# data = {
+#
+#             "Program blocks": [
+#                 {
+#                     "type": "FB",
+#                     "name": "FunctionBlock_1",
+#                     "programming_language": "FBD"
+#                 },
+#                 {
+#                     "type": "OB",
+#                     "name": "YouKnow",
+#                     "programming_language": "FBD",
+#                     "source": {
+#                         "name": "YouKnow",
+#                         "library": "Library1"
+#                     }
+#                 },
+#                 {
+#                     "type": "FB",
+#                     "name": "Reset_Main",
+#                     "number": 2,
+#                     "programming_language": "STL",
+#                     "network_sources": [
+#                         [
+#                                 {
+#                                     "type": "FB",
+#                                     "name": "Reset_1a",
+#                                     "programming_language": "FBD"
+#                                 },
+#                                 {
+#                                     "type": "FB",
+#                                     "name": "Reset_1b",
+#                                     "programming_language": "FBD"
+#                                 },
+#                                 {
+#                                     "type": "FB",
+#                                     "name": "Reset_1c",
+#                                     "programming_language": "FBD"
+#                                 },
+#                                 {
+#                                     "type": "FB",
+#                                     "name": "Reset_1d",
+#                                     "programming_language": "FBD"
+#                                 }
+#                         ],
+#                         [
+#                                 {
+#                                     "type": "FB",
+#                                     "name": "Reset_3",
+#                                     "programming_language": "FBD"
+#                                 }
+#                         ],
+#                         [
+#                                 {
+#                                     "type": "FB",
+#                                     "name": "Reset_4",
+#                                     "programming_language": "FBD"
+#                                 }
+#                         ],
+#                         [
+#                                 {
+#                                     "type": "FB",
+#                                     "name": "Reset_5",
+#                                     "programming_language": "FBD"
+#                                 }
+#                         ]
+#                     ],
+#                     "db": {
+#                         "type": "GlobalDB",
+#                         "name": "Reset_Main_DB",
+#                         "programming_language": "DB",
+#                         "instanceOfName": "Reset_Main"
+#                     }
+#                 }
+#             ],
+# }
+#
+# schema = config_schema.Schema({
+#         config_schema.Optional("Program blocks", default=[]): config_schema.And(list, [config_schema.Or(config_schema.schema_program_block_ob,config_schema.schema_program_block_fb,config_schema.schema_program_block_fc)]),
+# })
+#
+# blocks = schema.validate(data)
+#
+# for plc_block in blocks['Program blocks']:
+#     xml_obj = xml_builder.PlcBlock(plc_block.get('type', PlcType.FB).value, plc_block.get('name'), plc_block.get('number'))
+#     xml = xml_obj.build(
+#         programming_language=plc_block.get('programming_language'),
+#         network_sources=plc_block.get('network_sources', []),
+#     )
+#     # print(xml)
+#     # print()
+#     # print()
+#
+#     db = plc_block.get('db')
+#     if db.get('type') == DatabaseType.GLOBAL:
+#         xml_obj = xml_builder.Database(
+#             db['type'].value,
+#             db['name'],
+#             db['number']
+#         )
+#         xml = xml_obj.build(db['programming_language'])
+#         print(xml)
