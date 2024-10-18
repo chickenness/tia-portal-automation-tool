@@ -47,7 +47,7 @@ class PlcBlock(XML):
             })
             AttributeList = ET.SubElement(compile_unit, "AttributeList")
             NetworkSource = ET.SubElement(AttributeList, "NetworkSource")
-            NetworkSource.append(self.generate_flgnet(network))
+            NetworkSource.append(self.create_flgnet(network))
 
             ET.SubElement(AttributeList, "ProgrammingLanguage").text = programming_language
 
@@ -55,10 +55,12 @@ class PlcBlock(XML):
 
         return self.export(self.root)
 
-    def generate_flgnet(self, calls: list[dict[str, Any]], instance_type: DatabaseType = DatabaseType.SINGLE) -> ET.Element:
+    def create_flgnet(self, calls: list[dict[str, Any]], instance_type: DatabaseType = DatabaseType.SINGLE) -> ET.Element:
         root = ET.fromstring("<FlgNet />")
         Parts = ET.SubElement(root, "Parts")
         Wires = ET.SubElement(root, "Wires")
+
+        root.set('xmlns', "http://www.siemens.com/automation/Openness/SW/NetworkSource/FlgNet/v4")
 
         uid_counter = 0
         # create Parts
@@ -76,8 +78,6 @@ class PlcBlock(XML):
                 })
                 ET.SubElement(Instance, "Component", attrib={"Name": db.get('name', f"{instance['name']}_DB")})
                 
-                # TODO: implement Parameter for Multi InstanceDB
-
                 uid_counter += 2
 
             # create Wires
@@ -101,7 +101,6 @@ class PlcBlock(XML):
                     'Name': 'en'
                 })
                 
-        root.set('xmlns', "http://www.siemens.com/automation/Openness/SW/NetworkSource/FlgNet/v4")
 
         return root
 
@@ -135,11 +134,6 @@ class FB(PlcBlock):
     def build(self, programming_language: str, network_sources: list[list[dict[str, Any]]]) -> str:
         super().build(programming_language, network_sources)
 
-        self.generate_multi_instancedb(network_sources)
-
-        return self.export(self.root)
-
-    def generate_multi_instancedb(self, network_sources: list[list[dict[str, Any]]]):
         for networks in network_sources:
             for instance in networks:
                 if not instance.get('db'):
@@ -147,13 +141,15 @@ class FB(PlcBlock):
                 if not instance['db']['type'] == DatabaseType.MULTI:
                     continue
                 el = ET.SubElement(self.StaticSection, "Member", attrib={
-                    "Name": f"{instance['name']}_Instance",
+                    "Name": instance.get('db', {}).get('component_name', f"{instance['name']}_Instance"),
                     "Datatype": f'"{instance["name"]}"',
                 })
                 ET.SubElement(ET.SubElement(el, "AttributeList"), "BooleanAttribute", attrib={
                     "Name": "SetPoint",
                     "SystemDefined": "true",
                 }).text = "true"
+
+        return self.export(self.root)
 
 
 

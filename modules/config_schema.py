@@ -69,6 +69,7 @@ schema_sections = Schema({
 
 schema_multi_instance_db = Schema({
     "type": And(str, Use(DatabaseType)),
+    "component_name": str,
     "sections": And(list, [schema_sections]),
 })
 
