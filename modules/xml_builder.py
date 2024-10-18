@@ -24,8 +24,10 @@ class XML:
         return ET.tostring(root, encoding='utf-8').decode('utf-8')
 
 class PlcBlock(XML):
-    def __init__(self, block_type: str, name: str, number: int) -> None:
+    def __init__(self, block_type: str, name: str, number: int, db: dict[str, Any]) -> None:
         super().__init__(block_type, name, number)
+
+        self.db = db
 
         # Interface
         Interface = ET.SubElement(self.AttributeList, "Interface")
@@ -77,9 +79,22 @@ class PlcBlock(XML):
             })
 
             if db['type'] == DatabaseType.SINGLE:
+                """
+				<Instance Scope="GlobalVariable" UId="22">
+					<Component Name="Block_DB" />
+				</Instance>
+                """
                 ET.SubElement(Instance, "Component", attrib={"Name": db.get('name', f"{instance['name']}_DB")})
                 
             if db['type'] == DatabaseType.MULTI:
+                """
+				<Instance Scope="LocalVariable" UId="24">
+					<Component Name="Block_1_Instance_1" />
+				</Instance>
+				<Parameter Name="Gate 1" Section="Input" Type="Bool" />
+				<Parameter Name="Gate 2" Section="Input" Type="Bool" />
+				<Parameter Name="Result" Section="Output" Type="Bool" />
+                """
                 ET.SubElement(Instance, "Component", attrib={"Name": db.get('component_name', f"{instance['name']}_Instance")})
                 for section in db['sections']:
                     for member in section['members']:
@@ -117,8 +132,8 @@ class PlcBlock(XML):
 
 
 class OB(PlcBlock):
-    def __init__(self, name: str, number: int) -> None:
-        super().__init__("OB", name, number)
+    def __init__(self, name: str, number: int, db: dict[str, Any]) -> None:
+        super().__init__("OB", name, number, db)
 
         ET.SubElement(self.AttributeList, "SecondaryType").text = "ProgramCycle"
         self.Number.text = "1" if ((number > 1 and number < 123) or number == 0) else str(number)
@@ -135,8 +150,8 @@ class OB(PlcBlock):
 
 
 class FB(PlcBlock):
-    def __init__(self, name: str, number: int) -> None:
-        super().__init__("FB", name, number)
+    def __init__(self, name: str, number: int, db: dict[str, Any]) -> None:
+        super().__init__("FB", name, number, db)
 
         self.OutputSection = ET.SubElement(self.Sections, "Section", attrib={"Name": "Output"})
         self.InOutSection = ET.SubElement(self.Sections, "Section", attrib={"Name": "InOut"})
@@ -144,6 +159,22 @@ class FB(PlcBlock):
 
     def build(self, programming_language: str, network_sources: list[list[dict[str, Any]]]) -> str:
         super().build(programming_language, network_sources)
+
+        if self.db.get('type') == DatabaseType.MULTI:
+            db = self.db
+            for section in db['sections']:
+                for member in section['members']:
+                    match section['name']:
+                        case "Input":
+                            ET.SubElement(self.InputSection, "Member", attrib={
+                                "Name": member['Name'],
+                                "Datatype": member['Datatype']
+                            })
+                        case "Output":
+                            ET.SubElement(self.OutputSection, "Member", attrib={
+                                "Name": member['Name'],
+                                "Datatype": member['Datatype']
+                            })
 
         for networks in network_sources:
             for instance in networks:
@@ -159,6 +190,7 @@ class FB(PlcBlock):
                     "Name": "SetPoint",
                     "SystemDefined": "true",
                 }).text = "true"
+
 
         return self.export(self.root)
 
