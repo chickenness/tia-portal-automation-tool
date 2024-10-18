@@ -55,7 +55,7 @@ class PlcBlock(XML):
 
         return self.export(self.root)
 
-    def create_flgnet(self, calls: list[dict[str, Any]], instance_type: DatabaseType = DatabaseType.SINGLE) -> ET.Element:
+    def create_flgnet(self, calls: list[dict[str, Any]]) -> ET.Element:
         root = ET.fromstring("<FlgNet />")
         Parts = ET.SubElement(root, "Parts")
         Wires = ET.SubElement(root, "Wires")
@@ -64,42 +64,53 @@ class PlcBlock(XML):
 
         uid_counter = 0
         # create Parts
-        if instance_type == DatabaseType.SINGLE:
-            for instance in calls:
-                db = instance['db']
-                Call = ET.SubElement(Parts, "Call", attrib={"UId": str(21 + uid_counter)})
-                CallInfo = ET.SubElement(Call, "CallInfo", attrib={
-                    "Name": db.get('instanceOfName', instance['name']),
-                    "BlockType": instance.get('type', PlcType.FB).value,
-                })
-                Instance = ET.SubElement(CallInfo, "Instance", attrib={
-                    "Scope": "GlobalVariable" if db.get('type') == DatabaseType.SINGLE else "LocalVariable",
-                    "UId": str(22 + uid_counter),
-                })
+        for instance in calls:
+            db = instance['db']
+            Call = ET.SubElement(Parts, "Call", attrib={"UId": str(21 + uid_counter)})
+            CallInfo = ET.SubElement(Call, "CallInfo", attrib={
+                "Name": db.get('instanceOfName', instance['name']),
+                "BlockType": instance.get('type', PlcType.FB).value,
+            })
+            Instance = ET.SubElement(CallInfo, "Instance", attrib={
+                "Scope": "GlobalVariable" if db.get('type') == DatabaseType.SINGLE else "LocalVariable",
+                "UId": str(22 + uid_counter),
+            })
+
+            if db['type'] == DatabaseType.SINGLE:
                 ET.SubElement(Instance, "Component", attrib={"Name": db.get('name', f"{instance['name']}_DB")})
                 
-                uid_counter += 2
+            if db['type'] == DatabaseType.MULTI:
+                ET.SubElement(Instance, "Component", attrib={"Name": db.get('component_name', f"{instance['name']}_Instance")})
+                for section in db['sections']:
+                    for member in section['members']:
+                        ET.SubElement(CallInfo, "Parameter", attrib={
+                            "Name": member['Name'],
+                            "Section": section['name'],
+                            "Datatype": member['Datatype']
+                        })
 
-            # create Wires
-            e = 1
-            for i, instance in enumerate(calls):
-                Wire = ET.SubElement(Wires, "Wire", attrib={'UId': str(21 + uid_counter + i + e)})
-                if i == 0:
-                    ET.SubElement(Wire, "OpenCon", attrib={'UId': str(21 + uid_counter)})
-                    # ET.SubElement(Wire, "Powerrail")
-                    ET.SubElement(Wire, "NameCon", attrib={
-                        'UId': str(21 + i),
-                        'Name': 'en'
-                    })
-                    continue
+            uid_counter += 2
+
+        # create Wires
+        e = 1
+        for i, instance in enumerate(calls):
+            Wire = ET.SubElement(Wires, "Wire", attrib={'UId': str(21 + uid_counter + i + e)})
+            if i == 0:
+                ET.SubElement(Wire, "OpenCon", attrib={'UId': str(21 + uid_counter)})
+                # ET.SubElement(Wire, "Powerrail")
                 ET.SubElement(Wire, "NameCon", attrib={
-                    'UId': str(21 + (2 * i) - 2),
-                    'Name': 'eno'
-                })
-                ET.SubElement(Wire, "NameCon", attrib={
-                    'UId': str(21 + (2 * i)),
+                    'UId': str(21 + i),
                     'Name': 'en'
                 })
+                continue
+            ET.SubElement(Wire, "NameCon", attrib={
+                'UId': str(21 + (2 * i) - 2),
+                'Name': 'eno'
+            })
+            ET.SubElement(Wire, "NameCon", attrib={
+                'UId': str(21 + (2 * i)),
+                'Name': 'en'
+            })
                 
 
         return root
