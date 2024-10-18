@@ -37,9 +37,22 @@ class PlcBlock(XML):
     def build(self, programming_language: str,  network_sources: list[list[dict[str, Any]]]) -> str:
         ET.SubElement(self.AttributeList, "ProgrammingLanguage").text = programming_language
 
-        # fix this part, no issue but make it consistent
-        self.generate_object_list(self.SWBlock, network_sources, programming_language)
-        
+        ObjectList = ET.SubElement(self.SWBlock, "ObjectList")
+
+        id_counter = 0
+        for network in network_sources:
+            compile_unit = ET.SubElement(ObjectList, "SW.Blocks.CompileUnit", attrib={
+                "ID": format(3 + id_counter, 'X'),
+                "CompositionName": "CompileUnits",
+            })
+            AttributeList = ET.SubElement(compile_unit, "AttributeList")
+            NetworkSource = ET.SubElement(AttributeList, "NetworkSource")
+            NetworkSource.append(self.generate_flgnet(network))
+
+            ET.SubElement(AttributeList, "ProgrammingLanguage").text = programming_language
+
+            id_counter += 5
+
         return self.export(self.root)
 
     def generate_flgnet(self, calls: list[dict[str, Any]], instance_type: DatabaseType = DatabaseType.SINGLE) -> ET.Element:
@@ -92,25 +105,6 @@ class PlcBlock(XML):
 
         return root
 
-    def generate_object_list(self, parent: ET.Element, network_sources: list[list[dict[str, Any]]], programming_language: str) -> ET.Element:
-        root = ET.SubElement(parent, "ObjectList")
-
-        id_counter = 0
-        for network in network_sources:
-            compile_unit = ET.SubElement(root, "SW.Blocks.CompileUnit", attrib={
-                "ID": format(3 + id_counter, 'X'),
-                "CompositionName": "CompileUnits",
-            })
-            AttributeList = ET.SubElement(compile_unit, "AttributeList")
-            NetworkSource = ET.SubElement(AttributeList, "NetworkSource")
-            NetworkSource.append(self.generate_flgnet(network))
-
-            ET.SubElement(AttributeList, "ProgrammingLanguage").text = programming_language
-
-            id_counter += 5
-
-        return root
-
 
 class OB(PlcBlock):
     def __init__(self, name: str, number: int) -> None:
@@ -160,6 +154,9 @@ class FB(PlcBlock):
                     "Name": "SetPoint",
                     "SystemDefined": "true",
                 }).text = "true"
+
+
+
 
 class GlobalDB(XML):
     def __init__(self, block_type: str, name: str, number: int) -> None:
