@@ -68,14 +68,14 @@ class PlcBlock(XML):
         for i, instance in enumerate(calls):
             db = instance['db']
             uid = call_uids[i]
-            Call = ET.SubElement(Parts, "Call", attrib={"UId": str(uid)})
+            Call = ET.SubElement(Parts, "Call", attrib={"UId": str(uid[1])})
             CallInfo = ET.SubElement(Call, "CallInfo", attrib={
                 "Name": db.get('instanceOfName', instance['name']),
                 "BlockType": instance.get('type', PlcType.FB).value,
             })
             Instance = ET.SubElement(CallInfo, "Instance", attrib={
                 "Scope": "GlobalVariable" if db.get('type') == DatabaseType.SINGLE else "LocalVariable",
-                "UId": str(uid+1),
+                "UId": str(uid[1]+1),
             })
 
             if db['type'] == DatabaseType.SINGLE:
@@ -99,14 +99,14 @@ class PlcBlock(XML):
                 """
                 ET.SubElement(Instance, "Component", attrib={"Name": db.get('component_name', f"{instance['name']}_Instance")})
                 for section in db['sections']:
-                    wire_uids.append(uid)
+                    wire_uids.append(uid[1])
                     for member in section['members']:
                         ET.SubElement(CallInfo, "Parameter", attrib={
                             "Name": member['Name'],
                             "Section": section['name'],
                             "Type": member['Datatype']
                         })
-                        wire_uids.append(uid)
+                        wire_uids.append(uid[1])
 
         return Parts
 
@@ -114,29 +114,79 @@ class PlcBlock(XML):
         Wires = ET.SubElement(FlgNet, "Wires")
 
 
-        i = self.calculate_uids(calls)[2]
-        count = self.calculate_uids(calls)[1]
+        uids = self.calculate_uids(calls)
+        i = uids[2]
+        count = uids[1]
+        uid = dict(uids[0])
 
         for instance in calls:
             db = instance['db']
             for wire in db.get('wires', []):
                 Wire = ET.SubElement(Wires, "Wire", attrib={'UId': str(i+count)})
-                ET.SubElement(Wire, "NameCon", attrib={
-                    "UId": str(-1),
-                    "Name": wire['name']
-                })
-                match wire['component'].lower():
-                    case "opencon":
-                        ET.SubElement(Wire, "OpenCon", attrib={
-                            'UId': str(i),
-                        })
-                match wire['connect'].lower():
-                    case "opencon":
-                        ET.SubElement(Wire, "OpenCon", attrib={
-                            'UId': str(i),
-                        })
-                    case _:
-                        elname = "Powerrail"
+                if wire['component'].lower() != 'opencon':
+                    ET.SubElement(Wire, "NameCon", attrib={
+                        "UId": str(uid[wire['component']]),
+                        "Name": wire['name']
+                    })
+                else:
+                    ET.SubElement(Wire, "NameCon", attrib={
+                        "UId": str(uid[wire['connect']]),
+                        "Name": wire['name']
+                    })
+
+                if wire['connect'].lower() == 'opencon':
+                    ET.SubElement(Wire, "OpenCon", attrib={
+                        "UId": str(i)
+                    })
+                if wire['connect'] in uid.keys() and wire['component'].lower() == 'opencon':
+                    ET.SubElement(Wire, "OpenCon", attrib={
+                        "UId": str(i)
+                    })
+                if wire['connect'] in uid.keys() and wire['component'] in uid.keys():
+                    ET.SubElement(Wire, "NameCon", attrib={
+                        "UId": str(i),
+                        "Name": "eno"
+                    })
+                #
+                # if wire['connect'] in uid.keys():
+                #     # eno
+                #     ET.SubElement(Wire, "NameCon", attrib={
+                #         "UId": str(uid[wire['connect']]),
+                #         "Name": "eno"
+                #     })
+                #
+                # if wire['connect'].lower() == 'opencon':
+                #     ET.SubElement(Wire, "NameCon", attrib={
+                #         "UId": str(i),
+                #         "Name": "eno"
+                #     })
+
+
+
+
+                # if wire['connect'].lower() == 'opencon':
+                #     ET.SubElement(Wire, "NameCon", attrib={
+                #         "UId": str(uid[wire['component']]),
+                #         "Name": wire['name']
+                #     })
+                # else:
+                #     ET.SubElement(Wire, "NameCon", attrib={
+                #         "UId": str(uid[wire['connect']]),
+                #         "Name": wire['name']
+                #     })
+                #
+                # match wire['component'].lower():
+                #     case "opencon":
+                #         ET.SubElement(Wire, "OpenCon", attrib={
+                #             'UId': str(i),
+                #         })
+                # match wire['connect'].lower():
+                #     case "opencon":
+                #         ET.SubElement(Wire, "OpenCon", attrib={
+                #             'UId': str(i),
+                #         })
+                #     case _:
+                #         elname = "Powerrail"
                 i += 1
 
         # e = 1
@@ -213,9 +263,9 @@ class PlcBlock(XML):
 
 
 
-    def calculate_uids(self, calls: list[dict[str, Any]]) -> tuple[list[int], int, int]:
+    def calculate_uids(self, calls: list[dict[str, Any]]) -> tuple[list[tuple], int, int]:
         calls_id_end: int = len(calls) + 21 + 2
-        call_uids: list[int] = [i for i in range(21,calls_id_end,2)]
+        call_uids: list[tuple] = [(c.get('db', {}).get('component_name'), 21+(i*2)) for i, c in enumerate(calls)]
         i = 0
         for c in calls:
             for wire in c['db'].get('wires', []):
