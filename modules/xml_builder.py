@@ -61,9 +61,10 @@ class PlcBlock(XML):
     def create_parts(self, FlgNet: ET.Element, calls: list[dict[str, Any]]) -> ET.Element:
         Parts = ET.SubElement(FlgNet, "Parts")
 
-        calls_id_end: int = len(calls) + 21 + 2
-        call_uids: list[int] = [i for i in range(21,calls_id_end,2)]
+        uids = self.calculate_uids(calls)
+        call_uids = uids[0]
         wire_uids: list[int] = []
+
         for i, instance in enumerate(calls):
             db = instance['db']
             uid = call_uids[i]
@@ -109,15 +110,12 @@ class PlcBlock(XML):
 
         return Parts
 
-
     def create_flgnet(self, calls: list[dict[str, Any]]) -> ET.Element:
         root = ET.fromstring("<FlgNet />")
         Parts = self.create_parts(root, calls)
         Wires = ET.SubElement(root, "Wires")
 
         root.set('xmlns', "http://www.siemens.com/automation/Openness/SW/NetworkSource/FlgNet/v4")
-
-        
 
         return root
 
@@ -199,6 +197,12 @@ class PlcBlock(XML):
 				# </Wire>
     #             """
     #             pass
+
+    def calculate_uids(self, calls: list[dict[str, Any]]) -> tuple[list[int]]:
+        calls_id_end: int = len(calls) + 21 + 2
+        call_uids: list[int] = [i for i in range(21,calls_id_end,2)]
+
+        return (call_uids,)
 
 
 
