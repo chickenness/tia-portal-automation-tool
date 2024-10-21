@@ -64,18 +64,21 @@ class PlcBlock(XML):
 
         root.set('xmlns', "http://www.siemens.com/automation/Openness/SW/NetworkSource/FlgNet/v4")
 
-        uid_counter = 0
-        # create Parts
-        for instance in calls:
+        calls_count = len(calls)
+        calls_id_end: int = calls_count + 21 + 2
+        call_uids: list[int] = [i for i in range(21,calls_id_end,2)]
+
+        for i, instance in enumerate(calls):
             db = instance['db']
-            Call = ET.SubElement(Parts, "Call", attrib={"UId": str(21 + uid_counter)})
+            uid = call_uids[i]
+            Call = ET.SubElement(Parts, "Call", attrib={"UId": str(uid)})
             CallInfo = ET.SubElement(Call, "CallInfo", attrib={
                 "Name": db.get('instanceOfName', instance['name']),
                 "BlockType": instance.get('type', PlcType.FB).value,
             })
             Instance = ET.SubElement(CallInfo, "Instance", attrib={
                 "Scope": "GlobalVariable" if db.get('type') == DatabaseType.SINGLE else "LocalVariable",
-                "UId": str(22 + uid_counter),
+                "UId": str(uid+1),
             })
 
             if db['type'] == DatabaseType.SINGLE:
@@ -86,6 +89,8 @@ class PlcBlock(XML):
                 """
                 ET.SubElement(Instance, "Component", attrib={"Name": db.get('name', f"{instance['name']}_DB")})
                 
+
+
             if db['type'] == DatabaseType.MULTI:
                 """
 				<Instance Scope="LocalVariable" UId="24">
@@ -104,29 +109,71 @@ class PlcBlock(XML):
                             "Type": member['Datatype']
                         })
 
-            uid_counter += 2
 
         # create Wires
         e = 1
-        for i, instance in enumerate(calls):
-            Wire = ET.SubElement(Wires, "Wire", attrib={'UId': str(21 + uid_counter + i + e)})
-            if i == 0:
-                ET.SubElement(Wire, "OpenCon", attrib={'UId': str(21 + uid_counter)})
-                # ET.SubElement(Wire, "Powerrail")
-                ET.SubElement(Wire, "NameCon", attrib={
-                    'UId': str(21 + i),
-                    'Name': 'en'
-                })
-                continue
-            ET.SubElement(Wire, "NameCon", attrib={
-                'UId': str(21 + (2 * i) - 2),
-                'Name': 'eno'
-            })
-            ET.SubElement(Wire, "NameCon", attrib={
-                'UId': str(21 + (2 * i)),
-                'Name': 'en'
-            })
-                
+    #     for i, instance in enumerate(calls):
+    #         Wire = ET.SubElement(Wires, "Wire", attrib={'UId': str(21 + uid_counter + i + e)})
+    #         ET.SubElement(Wire, "OpenCon", attrib={'UId': str(21 + uid_counter)})
+				#
+    #         db = instance['db']
+    #         if db['type'] == DatabaseType.SINGLE:
+    #             if i == 0:
+    #                 # ET.SubElement(Wire, "Powerrail")
+    #                 ET.SubElement(Wire, "NameCon", attrib={
+    #                     'UId': str(21 + i),
+    #                     'Name': 'en'
+    #                 })
+    #                 continue
+    #             ET.SubElement(Wire, "NameCon", attrib={
+    #                 'UId': str(21 + (2 * i) - 2),
+    #                 'Name': 'eno'
+    #             })
+    #             ET.SubElement(Wire, "NameCon", attrib={
+    #                 'UId': str(21 + (2 * i)),
+    #                 'Name': 'en'
+    #             })
+    #                 
+    #         if db['type'] == DatabaseType.MULTI:
+    #             """
+    #             <Wire UId="32">
+				# 	<OpenCon UId="25" />
+				# 	<NameCon UId="21" Name="en" />
+				# </Wire>
+				# <Wire UId="33">
+				# 	<OpenCon UId="26" />
+				# 	<NameCon UId="21" Name="Gate 1" />
+				# </Wire>
+				# <Wire UId="34">
+				# 	<OpenCon UId="27" />
+				# 	<NameCon UId="21" Name="Gate 2" />
+				# </Wire>
+				# <Wire UId="35">
+				# 	<NameCon UId="21" Name="Result" />
+				# 	<OpenCon UId="28" />
+				# </Wire>
+				# <Wire UId="36">
+				# 	<NameCon UId="21" Name="eno" />
+				# 	<NameCon UId="23" Name="en" />
+				# </Wire>
+				# <Wire UId="37">
+				# 	<OpenCon UId="29" />
+				# 	<NameCon UId="23" Name="Gate 1" />
+				# </Wire>
+				# <Wire UId="38">
+				# 	<OpenCon UId="30" />
+				# 	<NameCon UId="23" Name="Gate 2" />
+				# </Wire>
+				# <Wire UId="39">
+				# 	<NameCon UId="23" Name="Result" />
+				# 	<OpenCon UId="31" />
+				# </Wire>
+    #             """
+    #             pass
+
+
+        wire_id_start: int = calls_id_end + 1
+        wire_uids: list[int] = []
 
         return root
 

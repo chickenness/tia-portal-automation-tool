@@ -18,6 +18,26 @@ class DatabaseType(Enum):
     LOCAL       = "LOCAL"
 
 
+schema_flgnet_part = Schema({
+    "@Name": str,
+    "@UId": int,
+    "TemplateValue": Schema({
+        "@Name": str,
+        "@Type": str,
+        "$": int,
+    }),
+})
+
+schema_flgnet_access = Schema({
+    "@Scope": str,
+    "@UId": int,
+    "Symbol": Schema({
+        "Component": Schema({
+            "Name": str
+        })
+    }),
+})
+
 schema_source = {
     "name": str,
 }
@@ -71,6 +91,7 @@ schema_multi_instance_db = Schema({
     "type": And(str, Use(DatabaseType)),
     "component_name": str,
     "sections": And(list, [schema_sections]),
+    Optional("wire", default={}): dict,
 })
 
 schema_program_block = {
