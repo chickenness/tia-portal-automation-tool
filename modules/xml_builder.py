@@ -101,7 +101,7 @@ class PlcBlock(XML):
                         ET.SubElement(CallInfo, "Parameter", attrib={
                             "Name": member['Name'],
                             "Section": section['name'],
-                            "Datatype": member['Datatype']
+                            "Type": member['Datatype']
                         })
 
             uid_counter += 2

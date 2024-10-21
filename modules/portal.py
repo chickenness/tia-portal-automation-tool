@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from . import logger
-from .xml_builder import PlcBlock, GlobalDB
+from .xml_builder import OB, FB, GlobalDB
 from .config_schema import PlcType, DatabaseType
 from pathlib import Path
 from typing import Any
@@ -190,11 +190,21 @@ def execute(SE: Siemens.Engineering, config: dict[Any, Any], settings: dict[str,
                 if not plc_block.get('source'):
                     xml = None
                     match plc_block.get('type'):
-                        case PlcType.FB | PlcType.OB | PlcType.FC:
-                            xml_obj = PlcBlock(
-                                plc_block.get('type', PlcType.FB).value,
+                        case PlcType.OB:
+                            xml_obj = OB(
                                 plc_block.get('name'),
-                                plc_block.get('number')
+                                plc_block.get('number'),
+                                plc_block.get('db', {})
+                            )
+                            xml = xml_obj.build(
+                                programming_language=plc_block.get('programming_language'),
+                                network_sources=plc_block.get('network_sources', []),
+                            )
+                        case PlcType.FB:
+                            xml_obj = FB(
+                                plc_block.get('name'),
+                                plc_block.get('number'),
+                                plc_block.get('db', {})
                             )
                             xml = xml_obj.build(
                                 programming_language=plc_block.get('programming_language'),
