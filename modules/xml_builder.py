@@ -110,33 +110,34 @@ class PlcBlock(XML):
 
         return Parts
 
-    def create_flgnet(self, calls: list[dict[str, Any]]) -> ET.Element:
-        root = ET.fromstring("<FlgNet />")
-        Parts = self.create_parts(root, calls)
-        Wires = ET.SubElement(root, "Wires")
-
-        root.set('xmlns', "http://www.siemens.com/automation/Openness/SW/NetworkSource/FlgNet/v4")
-
-        return root
+    def create_wires(self, FlgNet: ET.Element, calls: list[dict[str, Any]]) -> ET.Element:
+        Wires = ET.SubElement(FlgNet, "Wires")
 
 
-        # create Wires
-        wire_start: int = calls_id_end + 1
-        for i, instance in enumerate(calls):
+        i = self.calculate_uids(calls)[2]
+        count = self.calculate_uids(calls)[1]
+
+        for instance in calls:
             db = instance['db']
-            for wire in db['wires']:
-                Wire = ET.SubElement(Wires, "Wire", attrib={'UId': str(wire_start)})
+            for wire in db.get('wires', []):
+                Wire = ET.SubElement(Wires, "Wire", attrib={'UId': str(i+count)})
                 ET.SubElement(Wire, "NameCon", attrib={
-                    "UId": str(wire_uids[i]),
+                    "UId": str(-1),
                     "Name": wire['name']
                 })
+                match wire['component'].lower():
+                    case "opencon":
+                        ET.SubElement(Wire, "OpenCon", attrib={
+                            'UId': str(i),
+                        })
                 match wire['connect'].lower():
                     case "opencon":
                         ET.SubElement(Wire, "OpenCon", attrib={
-                            'UId': str(wire_start),
+                            'UId': str(i),
                         })
                     case _:
                         elname = "Powerrail"
+                i += 1
 
         # e = 1
     #     for i, instance in enumerate(calls):
@@ -198,11 +199,30 @@ class PlcBlock(XML):
     #             """
     #             pass
 
-    def calculate_uids(self, calls: list[dict[str, Any]]) -> tuple[list[int]]:
+        return Wires
+
+
+    def create_flgnet(self, calls: list[dict[str, Any]]) -> ET.Element:
+        root = ET.fromstring("<FlgNet />")
+        self.create_parts(root, calls)
+        self.create_wires(root, calls)
+
+        root.set('xmlns', "http://www.siemens.com/automation/Openness/SW/NetworkSource/FlgNet/v4")
+
+        return root
+
+
+
+    def calculate_uids(self, calls: list[dict[str, Any]]) -> tuple[list[int], int, int]:
         calls_id_end: int = len(calls) + 21 + 2
         call_uids: list[int] = [i for i in range(21,calls_id_end,2)]
+        i = 0
+        for c in calls:
+            for wire in c['db'].get('wires', []):
+                if "opencon" in (v.lower() for v in wire.values()):
+                    i += 1
 
-        return (call_uids,)
+        return (call_uids,i, calls_id_end)
 
 
 
