@@ -49,7 +49,8 @@ class PlcBlock(XML):
             })
             AttributeList = ET.SubElement(compile_unit, "AttributeList")
             NetworkSource = ET.SubElement(AttributeList, "NetworkSource")
-            NetworkSource.append(self.create_flgnet(network))
+            FlgNet = self.create_flgnet(network)
+            NetworkSource.append(FlgNet)
 
             ET.SubElement(AttributeList, "ProgrammingLanguage").text = programming_language
 
@@ -57,12 +58,8 @@ class PlcBlock(XML):
 
         return self.export(self.root)
 
-    def create_flgnet(self, calls: list[dict[str, Any]]) -> ET.Element:
-        root = ET.fromstring("<FlgNet />")
-        Parts = ET.SubElement(root, "Parts")
-        Wires = ET.SubElement(root, "Wires")
-
-        root.set('xmlns', "http://www.siemens.com/automation/Openness/SW/NetworkSource/FlgNet/v4")
+    def create_parts(self, FlgNet: ET.Element, calls: list[dict[str, Any]]) -> ET.Element:
+        Parts = ET.SubElement(FlgNet, "Parts")
 
         calls_id_end: int = len(calls) + 21 + 2
         call_uids: list[int] = [i for i in range(21,calls_id_end,2)]
@@ -109,6 +106,20 @@ class PlcBlock(XML):
                             "Type": member['Datatype']
                         })
                         wire_uids.append(uid)
+
+        return Parts
+
+
+    def create_flgnet(self, calls: list[dict[str, Any]]) -> ET.Element:
+        root = ET.fromstring("<FlgNet />")
+        Parts = self.create_parts(root, calls)
+        Wires = ET.SubElement(root, "Wires")
+
+        root.set('xmlns', "http://www.siemens.com/automation/Openness/SW/NetworkSource/FlgNet/v4")
+
+        
+
+        return root
 
 
         # create Wires
@@ -190,8 +201,6 @@ class PlcBlock(XML):
     #             pass
 
 
-
-        return root
 
 
 class OB(PlcBlock):
