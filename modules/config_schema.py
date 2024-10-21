@@ -20,8 +20,8 @@ class DatabaseType(Enum):
 
 schema_wire = Schema({
     "name": str,
-    "from": str,
-    "to": str,
+    "component": str,
+    "connect": str,
 })
 
 schema_source = {
@@ -77,7 +77,7 @@ schema_multi_instance_db = Schema({
     "type": And(str, Use(DatabaseType)),
     "component_name": str,
     "sections": And(list, [schema_sections]),
-    Optional("wire", default={}): And(list, list[schema_wire]),
+    Optional("wires", default={}): And(list, list[schema_wire]),
 })
 
 schema_program_block = {

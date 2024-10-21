@@ -64,10 +64,9 @@ class PlcBlock(XML):
 
         root.set('xmlns', "http://www.siemens.com/automation/Openness/SW/NetworkSource/FlgNet/v4")
 
-        calls_count = len(calls)
-        calls_id_end: int = calls_count + 21 + 2
+        calls_id_end: int = len(calls) + 21 + 2
         call_uids: list[int] = [i for i in range(21,calls_id_end,2)]
-
+        wire_uids: list[int] = []
         for i, instance in enumerate(calls):
             db = instance['db']
             uid = call_uids[i]
@@ -88,7 +87,7 @@ class PlcBlock(XML):
 				</Instance>
                 """
                 ET.SubElement(Instance, "Component", attrib={"Name": db.get('name', f"{instance['name']}_DB")})
-                
+
 
 
             if db['type'] == DatabaseType.MULTI:
@@ -102,16 +101,35 @@ class PlcBlock(XML):
                 """
                 ET.SubElement(Instance, "Component", attrib={"Name": db.get('component_name', f"{instance['name']}_Instance")})
                 for section in db['sections']:
+                    wire_uids.append(uid)
                     for member in section['members']:
                         ET.SubElement(CallInfo, "Parameter", attrib={
                             "Name": member['Name'],
                             "Section": section['name'],
                             "Type": member['Datatype']
                         })
+                        wire_uids.append(uid)
 
 
         # create Wires
-        e = 1
+        wire_start: int = calls_id_end + 1
+        for i, instance in enumerate(calls):
+            db = instance['db']
+            for wire in db['wires']:
+                Wire = ET.SubElement(Wires, "Wire", attrib={'UId': str(wire_start)})
+                ET.SubElement(Wire, "NameCon", attrib={
+                    "UId": str(wire_uids[i]),
+                    "Name": wire['name']
+                })
+                match wire['connect'].lower():
+                    case "opencon":
+                        ET.SubElement(Wire, "OpenCon", attrib={
+                            'UId': str(wire_start),
+                        })
+                    case _:
+                        elname = "Powerrail"
+
+        # e = 1
     #     for i, instance in enumerate(calls):
     #         Wire = ET.SubElement(Wires, "Wire", attrib={'UId': str(21 + uid_counter + i + e)})
     #         ET.SubElement(Wire, "OpenCon", attrib={'UId': str(21 + uid_counter)})
@@ -172,8 +190,6 @@ class PlcBlock(XML):
     #             pass
 
 
-        wire_id_start: int = calls_id_end + 1
-        wire_uids: list[int] = []
 
         return root
 
