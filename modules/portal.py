@@ -8,6 +8,7 @@ from typing import Any
 import logging
 import tempfile
 import uuid
+import xml.etree.ElementTree as ET
 
 from modules import config_schema
 
@@ -183,9 +184,12 @@ def execute(SE: Siemens.Engineering, config: dict[Any, Any], settings: dict[str,
             logging.debug(f"Program blocks data: {device_data.get('Program blocks', {})}")
 
             def create_instance(plc_block):
+                wires = []
                 for networks in plc_block.get('network_sources', []):
                     for instance in networks:
-                        create_instance(instance)
+                        data = create_instance(instance)
+                        if not data: continue
+                        wires.append(data)
 
                 if not plc_block.get('source'):
                     xml = None
@@ -206,9 +210,14 @@ def execute(SE: Siemens.Engineering, config: dict[Any, Any], settings: dict[str,
                                 plc_block.get('number'),
                                 plc_block.get('db', {})
                             )
+                            for i, nws in enumerate(plc_block.get('network_sources', [])):
+                                for j, network in enumerate(nws):
+                                    if not network.get('db', {}).get('sections'):
+                                        plc_block['network_sources'][i][j]['db']['sections'] = wires[i]
+
                             xml = xml_obj.build(
                                 programming_language=plc_block.get('programming_language'),
-                                network_sources=plc_block.get('network_sources', []),
+                                network_sources=plc_block.get('network_sources', [])
                             )
                         case DatabaseType.GLOBAL:
                             xml_obj = GlobalDB(
@@ -256,6 +265,7 @@ def execute(SE: Siemens.Engineering, config: dict[Any, Any], settings: dict[str,
 
                 if is_valid_library_source:
                     for library in TIA.GlobalLibraries:
+                        db_sections: list[dict[str, Any]] = []
 
                         logging.debug(f"Checking Library: {block_source.get('library')}")
 
@@ -266,7 +276,42 @@ def execute(SE: Siemens.Engineering, config: dict[Any, Any], settings: dict[str,
                         new_block.SetAttribute("Name", plc_block.get('name'))
 
                         logging.info(f"New PLC Block {new_block.Name} from Library {library.Name} added to {software_base.Name}")
-                        break
+
+                        singleCompile = new_block.GetService[SE.Compiler.ICompilable]();
+                        singleCompile.Compile()
+                        filename = uuid.uuid4().hex
+                        path = f"{Path(tempfile.gettempdir()).absolute().as_posix()}/{filename}.xml"
+                        new_block.Export(FileInfo(path), getattr(SE.ExportOptions, "None")   )
+
+                        with open(path, 'r', encoding='utf-8') as file:
+                            xml = ET.fromstring(file.read().replace('\ufeff<?xml version="1.0" encoding="utf-8"?>\n', ''))
+                            namespace = {'ns': 'http://www.siemens.com/automation/Openness/SW/Interface/v5'}
+
+                            sections = xml.find('.//ns:Sections', namespace)
+                            if not sections:
+                                break
+                            for section in sections:
+                                if section.get('Name') in ['Constant']:
+                                    continue
+                                section_name = section.get('Name')
+                                for member in section:
+                                    name = member.get('Name')
+                                    datatype = member.get('Datatype')
+                                    if not name: continue
+                                    if not section: continue
+                                    if not datatype: continue
+                                    data = {
+                                        "name": section_name,
+                                        "members": [
+                                            {
+                                                "Name": name,
+                                                "Datatype": datatype
+                                            }
+                                        ]
+                                    }
+                                    db_sections.append(data)
+        
+                        return db_sections
                     return
                     
                 is_valid_plc_source = config_schema.schema_source_plc.is_valid(block_source)

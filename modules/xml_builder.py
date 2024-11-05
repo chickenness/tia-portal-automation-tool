@@ -1,7 +1,12 @@
+from enum import Enum
 from typing import Any
 import xml.etree.ElementTree as ET
 
 from modules.config_schema import PlcType, DatabaseType
+
+class WireMethod(Enum):
+    SINGLE_INSTANCE = "SINGLE_INSTANCE"
+    MULTI_INSTANCE = "MULTI_INSTANCE"
 
 class XML:
     def __init__(self, block_type: str, name: str, number: int) -> None:
@@ -39,11 +44,11 @@ class PlcBlock(XML):
     def build(self, programming_language: str,  network_sources: list[list[dict[str, Any]]]) -> str:
         ET.SubElement(self.AttributeList, "ProgrammingLanguage").text = programming_language
 
-        ObjectList = ET.SubElement(self.SWBlock, "ObjectList")
+        self.ObjectList = ET.SubElement(self.SWBlock, "ObjectList")
 
         id_counter = 0
         for network in network_sources:
-            compile_unit = ET.SubElement(ObjectList, "SW.Blocks.CompileUnit", attrib={
+            compile_unit = ET.SubElement(self.ObjectList, "SW.Blocks.CompileUnit", attrib={
                 "ID": format(3 + id_counter, 'X'),
                 "CompositionName": "CompileUnits",
             })
@@ -110,147 +115,53 @@ class PlcBlock(XML):
 
         return Parts
 
-    def create_wires(self, FlgNet: ET.Element, calls: list[dict[str, Any]]) -> ET.Element:
+    def create_wires(self, FlgNet: ET.Element, calls: list[dict[str, Any]], method: WireMethod = WireMethod.SINGLE_INSTANCE) -> ET.Element:
         Wires = ET.SubElement(FlgNet, "Wires")
 
+        if method == WireMethod.SINGLE_INSTANCE:
+            # print('-------------',calls[0])
+            wires = self.create_default_wire(Wires, calls[0])
 
-        uids = self.calculate_uids(calls)
-        i = uids[2]
-        count = uids[1]
-        uid = dict(uids[0])
+        if method == WireMethod.MULTI_INSTANCE:
+            uids = self.calculate_uids(calls)
+            i = uids[2]
+            count = uids[1]
+            uid = dict(uids[0])
 
-        for instance in calls:
-            db = instance['db']
-            for wire in db.get('wires', []):
-                Wire = ET.SubElement(Wires, "Wire", attrib={'UId': str(i+count)})
-                if wire['component'].lower() != 'opencon':
-                    ET.SubElement(Wire, "NameCon", attrib={
-                        "UId": str(uid[wire['component']]),
-                        "Name": wire['name']
-                    })
-                else:
-                    ET.SubElement(Wire, "NameCon", attrib={
-                        "UId": str(uid[wire['connect']]),
-                        "Name": wire['name']
-                    })
+            for instance in calls:
+                db = instance['db']
+                for wire in db.get('wires', []):
+                    Wire = ET.SubElement(Wires, "Wire", attrib={'UId': str(i+count)})
+                    if wire['component'].lower() != 'opencon':
+                        ET.SubElement(Wire, "NameCon", attrib={
+                            "UId": str(uid[wire['component']]),
+                            "Name": wire['name']
+                        })
+                    else:
+                        ET.SubElement(Wire, "NameCon", attrib={
+                            "UId": str(uid[wire['connect']]),
+                            "Name": wire['name']
+                        })
 
-                if wire['connect'].lower() == 'opencon':
-                    ET.SubElement(Wire, "OpenCon", attrib={
-                        "UId": str(i)
-                    })
-                if wire['connect'] in uid.keys() and wire['component'].lower() == 'opencon':
-                    ET.SubElement(Wire, "OpenCon", attrib={
-                        "UId": str(i)
-                    })
-                if wire['connect'] in uid.keys() and wire['component'] in uid.keys():
-                    ET.SubElement(Wire, "NameCon", attrib={
-                        "UId": str(i),
-                        "Name": "eno"
-                    })
-                #
-                # if wire['connect'] in uid.keys():
-                #     # eno
-                #     ET.SubElement(Wire, "NameCon", attrib={
-                #         "UId": str(uid[wire['connect']]),
-                #         "Name": "eno"
-                #     })
-                #
-                # if wire['connect'].lower() == 'opencon':
-                #     ET.SubElement(Wire, "NameCon", attrib={
-                #         "UId": str(i),
-                #         "Name": "eno"
-                #     })
-
-
-
-
-                # if wire['connect'].lower() == 'opencon':
-                #     ET.SubElement(Wire, "NameCon", attrib={
-                #         "UId": str(uid[wire['component']]),
-                #         "Name": wire['name']
-                #     })
-                # else:
-                #     ET.SubElement(Wire, "NameCon", attrib={
-                #         "UId": str(uid[wire['connect']]),
-                #         "Name": wire['name']
-                #     })
-                #
-                # match wire['component'].lower():
-                #     case "opencon":
-                #         ET.SubElement(Wire, "OpenCon", attrib={
-                #             'UId': str(i),
-                #         })
-                # match wire['connect'].lower():
-                #     case "opencon":
-                #         ET.SubElement(Wire, "OpenCon", attrib={
-                #             'UId': str(i),
-                #         })
-                #     case _:
-                #         elname = "Powerrail"
-                i += 1
-
-        # e = 1
-    #     for i, instance in enumerate(calls):
-    #         Wire = ET.SubElement(Wires, "Wire", attrib={'UId': str(21 + uid_counter + i + e)})
-    #         ET.SubElement(Wire, "OpenCon", attrib={'UId': str(21 + uid_counter)})
-				#
-    #         db = instance['db']
-    #         if db['type'] == DatabaseType.SINGLE:
-    #             if i == 0:
-    #                 # ET.SubElement(Wire, "Powerrail")
-    #                 ET.SubElement(Wire, "NameCon", attrib={
-    #                     'UId': str(21 + i),
-    #                     'Name': 'en'
-    #                 })
-    #                 continue
-    #             ET.SubElement(Wire, "NameCon", attrib={
-    #                 'UId': str(21 + (2 * i) - 2),
-    #                 'Name': 'eno'
-    #             })
-    #             ET.SubElement(Wire, "NameCon", attrib={
-    #                 'UId': str(21 + (2 * i)),
-    #                 'Name': 'en'
-    #             })
-    #                 
-    #         if db['type'] == DatabaseType.MULTI:
-    #             """
-    #             <Wire UId="32">
-				# 	<OpenCon UId="25" />
-				# 	<NameCon UId="21" Name="en" />
-				# </Wire>
-				# <Wire UId="33">
-				# 	<OpenCon UId="26" />
-				# 	<NameCon UId="21" Name="Gate 1" />
-				# </Wire>
-				# <Wire UId="34">
-				# 	<OpenCon UId="27" />
-				# 	<NameCon UId="21" Name="Gate 2" />
-				# </Wire>
-				# <Wire UId="35">
-				# 	<NameCon UId="21" Name="Result" />
-				# 	<OpenCon UId="28" />
-				# </Wire>
-				# <Wire UId="36">
-				# 	<NameCon UId="21" Name="eno" />
-				# 	<NameCon UId="23" Name="en" />
-				# </Wire>
-				# <Wire UId="37">
-				# 	<OpenCon UId="29" />
-				# 	<NameCon UId="23" Name="Gate 1" />
-				# </Wire>
-				# <Wire UId="38">
-				# 	<OpenCon UId="30" />
-				# 	<NameCon UId="23" Name="Gate 2" />
-				# </Wire>
-				# <Wire UId="39">
-				# 	<NameCon UId="23" Name="Result" />
-				# 	<OpenCon UId="31" />
-				# </Wire>
-    #             """
-    #             pass
+                    if wire['connect'].lower() == 'opencon':
+                        ET.SubElement(Wire, "OpenCon", attrib={
+                            "UId": str(i)
+                        })
+                    if wire['connect'] in uid.keys() and wire['component'].lower() == 'opencon':
+                        ET.SubElement(Wire, "OpenCon", attrib={
+                            "UId": str(i)
+                        })
+                    if wire['connect'] in uid.keys() and wire['component'] in uid.keys():
+                        ET.SubElement(Wire, "NameCon", attrib={
+                            "UId": str(i),
+                            "Name": "eno"
+                        })
 
         return Wires
 
+    def create_default_wire(self, Wires: ET.Element, instance: dict[str, Any]) -> ET.Element:
+        pass
+        
 
     def create_flgnet(self, calls: list[dict[str, Any]]) -> ET.Element:
         root = ET.fromstring("<FlgNet />")
@@ -336,7 +247,6 @@ class FB(PlcBlock):
                     "Name": "SetPoint",
                     "SystemDefined": "true",
                 }).text = "true"
-
 
         return self.export(self.root)
 

@@ -1,6 +1,7 @@
 from enum import Enum
 from pathlib import Path
 from schema import Schema, And, Or, Use, Optional, SchemaError
+from dataclasses import dataclass
 
 class SourceType(Enum):
     LIBRARY = "LIBRARY"
@@ -17,11 +18,10 @@ class DatabaseType(Enum):
     MULTI       = "MULTI"
     LOCAL       = "LOCAL"
 
-
 schema_wire = Schema({
     "name": str,
-    "component": str,
-    "connect": str,
+    "from": str,
+    "to": str,
 })
 
 schema_source = {
@@ -76,7 +76,7 @@ schema_sections = Schema({
 schema_multi_instance_db = Schema({
     "type": And(str, Use(DatabaseType)),
     "component_name": str,
-    "sections": And(list, [schema_sections]),
+    Optional("sections", default=[]): And(list, [schema_sections]),
     Optional("wires", default={}): And(list, list[schema_wire]),
 })
 
@@ -88,11 +88,10 @@ schema_program_block = {
 
 schema_program_block.update({
     "type": And(str, Or(Use(PlcType), Use(DatabaseType))),
-    Optional("source", default=None): Or(schema_source_plc, schema_source_library),
+    Optional("source", default={}): Or(schema_source_library, schema_source_plc),
     Optional('network_sources', default=[]): And(list, [[Schema(schema_program_block)]]),
 })
 
-        # Optional("directory", default=Path.home()): And(str, Use(Path), lambda p: Path(p)),
 schema_program_block_ob = {**schema_program_block}
 schema_program_block_fb = {**schema_program_block}
 schema_program_block_fc = {**schema_program_block}
