@@ -3,13 +3,13 @@ import argparse
 import json
 import wx
 
-from modules import config_schema, portal
+from modules import config_schema, portal, logger
 
 class MainWindow(wx.Frame):
-    def __init__(self, parent, title, dll: Path) -> None:
+    def __init__(self, parent, title) -> None:
         wx.Frame.__init__(self, parent, title=title, size=(800,600))
         self.config: dict = {}
-        self.dll: Path = dll
+        self.dll: str = ""
 
         self.CreateStatusBar()
 
@@ -38,18 +38,22 @@ class MainWindow(wx.Frame):
         _hsizer = wx.BoxSizer(wx.HORIZONTAL)
         self.textctrl_config = wx.TextCtrl(_tab_project, size=(300, -1))
         _browse: wx.Button = wx.Button(_tab_project, label="Browse")
+        _select_dll: wx.Button = wx.Button(_tab_project, label="Select DLL")
         _execute: wx.Button = wx.Button(_tab_project, label="Execute")
         _hsizer.Add(self.textctrl_config, proportion=1, flag=wx.ALL|wx.EXPAND, border=5)
         _hsizer.Add(_browse, flag=wx.ALL, border=5)
+        _hsizer.Add(_select_dll, flag=wx.ALL, border=5)
         _hsizer.Add(_execute, flag=wx.ALL, border=5)
         _vsizer.Add(_hsizer, flag= wx.EXPAND|wx.LEFT|wx.RIGHT|wx.TOP, border=5)
-        _logs: wx.TextCtrl = wx.TextCtrl(_tab_project, style=wx.TE_MULTILINE)
+        self.logs: wx.TextCtrl = wx.TextCtrl(_tab_project, style=wx.TE_MULTILINE)
         # _override_path: wx.CheckBox = wx.CheckBox(_tab_project, label="Override Config Project Path")
         # _override_path.SetValue(True)
         # _vsizer.Add(_override_path, flag=wx.ALL|wx.EXPAND, border=5)
-        _vsizer.Add(_logs, proportion=1, flag=wx.ALL|wx.EXPAND, border=5)
+        _vsizer.Add(self.logs, proportion=1, flag=wx.ALL|wx.EXPAND, border=5)
         _tab_project.SetSizer(_vsizer)
         self.Bind(wx.EVT_BUTTON, self.OnOpen, _browse)
+        self.Bind(wx.EVT_BUTTON, self.OnRun, _execute)
+        self.Bind(wx.EVT_BUTTON, self.OnSelectDLL, _select_dll)
         _tab_config = wx.SplitterWindow(notebook, style=wx.SP_LIVE_UPDATE)
         _sty = wx.BORDER_SUNKEN
         _p1 = wx.Window(_tab_config, style=_sty)
@@ -70,6 +74,8 @@ class MainWindow(wx.Frame):
         notebook.AddPage(_tab_project, "Project")
         notebook.AddPage(_tab_config, "Config")
 
+        logger.setup(self.logs, 10)
+
         self.SetMinSize((600,480))
         self.Show(True)
 
@@ -84,6 +90,13 @@ class MainWindow(wx.Frame):
             config = json.load(file)
             self.config = config_schema.validate_config(config)
             self.populate_config(self.config)
+
+    def OnSelectDLL(self, e):
+        with wx.FileDialog(self, "Open path of Siemens.Engineering.dll", wildcard= "DLL (*.dll)|*.dll", style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST) as fileDialog:
+            if fileDialog.ShowModal() == wx.ID_CANCEL:
+                return
+            self.dll = fileDialog.GetPath()
+
 
 
     def OnClose(self, e):
@@ -111,10 +124,18 @@ class MainWindow(wx.Frame):
 
 
     def OnRun(self, e):
+        dll = Path(self.dll) 
+        if not dll.exists() or not dll.is_file():
+            error_message = "Siemens.Engineering.dll path does not exist!"
+            dialog = wx.MessageDialog(self, error_message, "Error", wx.OK | wx.ICON_ERROR)
+            dialog.ShowModal()
+            dialog.Destroy()
+
+            return
         import clr
         from System.IO import DirectoryInfo, FileInfo
 
-        clr.AddReference(self.dll.as_posix())
+        clr.AddReference(dll.as_posix())
         import Siemens.Engineering as SE
 
         print("TIA Portal Automation Tool")
@@ -202,6 +223,6 @@ if __name__ == '__main__':
         )
     else:
         app = wx.App(False)
-        frame = MainWindow(None, title="TIA Portal Automation Tool", dll=dll)
+        frame = MainWindow(None, title="TIA Portal Automation Tool")
         app.MainLoop()
 
