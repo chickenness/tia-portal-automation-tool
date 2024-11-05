@@ -4,10 +4,6 @@ import xml.etree.ElementTree as ET
 
 from modules.config_schema import PlcType, DatabaseType
 
-class WireMethod(Enum):
-    SINGLE_INSTANCE = "SINGLE_INSTANCE"
-    MULTI_INSTANCE = "MULTI_INSTANCE"
-
 class XML:
     def __init__(self, block_type: str, name: str, number: int) -> None:
         if block_type in ["OB", "FB", "FC"]:
@@ -115,58 +111,87 @@ class PlcBlock(XML):
 
         return Parts
 
-    def create_wires(self, FlgNet: ET.Element, calls: list[dict[str, Any]], method: WireMethod = WireMethod.SINGLE_INSTANCE) -> ET.Element:
+    def create_wires(self, FlgNet: ET.Element, parts: ET.Element) -> ET.Element:
         Wires = ET.SubElement(FlgNet, "Wires")
+        
+        for call in parts:
+            CallInfo = call.find('.//CallInfo')
+            Instance = call.find('.//CallInfo/Instance')
+            if CallInfo is None: continue
+            if Instance is None: continue
 
-        if method == WireMethod.SINGLE_INSTANCE:
-            # print('-------------',calls[0])
-            wires = self.create_default_wire(Wires, calls[0])
+            instance_uid = call.get('UId') # used for NameCon "en" UId 
+            parameter_count = len(CallInfo) - 1
+            starting_opencon_uid = len(call) * 2 + 21
+            
+            """
+		    <Wire UId="27">
+			    <OpenCon UId="23" />
+			    <NameCon UId="21" Name="en" />
+		    </Wire>
+            """
+            Wire = ET.SubElement(Wires, "Wire", attrib={'UId': str(starting_opencon_uid+parameter_count+1)})
+            ET.SubElement(Wire, "OpenCon", attrib={'UId': str(starting_opencon_uid)})
+            ET.SubElement(Wire, "NameCon", attrib={
+                'UId': str(instance_uid),
+                'Name': 'en'
+            })
 
-        if method == WireMethod.MULTI_INSTANCE:
-            uids = self.calculate_uids(calls)
-            i = uids[2]
-            count = uids[1]
-            uid = dict(uids[0])
+            i = 1
+            for parameter in CallInfo:
+                if parameter.tag != "Parameter": continue
+                Wire = ET.SubElement(Wires, "Wire", attrib={
+                    'UId': str(starting_opencon_uid+parameter_count+1+i)
+                })
+                ET.SubElement(Wire, "OpenCon", attrib={'UId': str(starting_opencon_uid+i)})
+                ET.SubElement(Wire, "NameCon", attrib={
+                    'UId': str(instance_uid or 21),
+                    'Name': parameter.get('Name') or "en"
+                })
+                i += 1
 
-            for instance in calls:
-                db = instance['db']
-                for wire in db.get('wires', []):
-                    Wire = ET.SubElement(Wires, "Wire", attrib={'UId': str(i+count)})
-                    if wire['component'].lower() != 'opencon':
-                        ET.SubElement(Wire, "NameCon", attrib={
-                            "UId": str(uid[wire['component']]),
-                            "Name": wire['name']
-                        })
-                    else:
-                        ET.SubElement(Wire, "NameCon", attrib={
-                            "UId": str(uid[wire['connect']]),
-                            "Name": wire['name']
-                        })
 
-                    if wire['connect'].lower() == 'opencon':
-                        ET.SubElement(Wire, "OpenCon", attrib={
-                            "UId": str(i)
-                        })
-                    if wire['connect'] in uid.keys() and wire['component'].lower() == 'opencon':
-                        ET.SubElement(Wire, "OpenCon", attrib={
-                            "UId": str(i)
-                        })
-                    if wire['connect'] in uid.keys() and wire['component'] in uid.keys():
-                        ET.SubElement(Wire, "NameCon", attrib={
-                            "UId": str(i),
-                            "Name": "eno"
-                        })
+        # if 1 == 0:
+        #     uids = self.calculate_uids(calls)
+        #     i = uids[2]
+        #     count = uids[1]
+        #     uid = dict(uids[0])
+        #
+        #     for instance in calls:
+        #         db = instance['db']
+        #         for wire in db.get('wires', []):
+        #             Wire = ET.SubElement(Wires, "Wire", attrib={'UId': str(i+count)})
+        #             if wire['component'].lower() != 'opencon':
+        #                 ET.SubElement(Wire, "NameCon", attrib={
+        #                     "UId": str(uid[wire['component']]),
+        #                     "Name": wire['name']
+        #                 })
+        #             else:
+        #                 ET.SubElement(Wire, "NameCon", attrib={
+        #                     "UId": str(uid[wire['connect']]),
+        #                     "Name": wire['name']
+        #                 })
+        #
+        #             if wire['connect'].lower() == 'opencon':
+        #                 ET.SubElement(Wire, "OpenCon", attrib={
+        #                     "UId": str(i)
+        #                 })
+        #             if wire['connect'] in uid.keys() and wire['component'].lower() == 'opencon':
+        #                 ET.SubElement(Wire, "OpenCon", attrib={
+        #                     "UId": str(i)
+        #                 })
+        #             if wire['connect'] in uid.keys() and wire['component'] in uid.keys():
+        #                 ET.SubElement(Wire, "NameCon", attrib={
+        #                     "UId": str(i),
+        #                     "Name": "eno"
+        #                 })
 
         return Wires
 
-    def create_default_wire(self, Wires: ET.Element, instance: dict[str, Any]) -> ET.Element:
-        pass
-        
-
     def create_flgnet(self, calls: list[dict[str, Any]]) -> ET.Element:
         root = ET.fromstring("<FlgNet />")
-        self.create_parts(root, calls)
-        self.create_wires(root, calls)
+        parts = self.create_parts(root, calls)
+        self.create_wires(root, parts)
 
         root.set('xmlns', "http://www.siemens.com/automation/Openness/SW/NetworkSource/FlgNet/v4")
 
@@ -197,12 +222,12 @@ class OB(PlcBlock):
         ET.SubElement(self.InputSection, "Member", attrib={
             "Name": "Initial_Call",
             "Datatype": "Bool",
-            "Informative": "True",
+            "Informative": "true",
         })
-        ET.SubElement(self.InputSection, "Remanence", attrib={
-            "Name": "Initial_Call",
+        ET.SubElement(self.InputSection, "Member", attrib={
+            "Name": "Remanence",
             "Datatype": "Bool",
-            "Informative": "True",
+            "Informative": "true",
         })
 
 
