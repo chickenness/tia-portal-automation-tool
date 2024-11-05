@@ -1,138 +1,121 @@
-from modules import config_schema, portal
 from pathlib import Path
+import argparse
+import wx
 
-import json
-# import wx
+from modules import config_schema, portal
+
+class MainWindow(wx.Frame):
+    def __init__(self, parent, title) -> None:
+        wx.Frame.__init__(self, parent, title=title, size=(800,600))
+        # self.config: pp.objects.Config = None
+        self.config_path: str = ""
+
+        self.CreateStatusBar()
+
+        menubar = MenuBar.new(self)
+        notebook = Notebook.new(self)
+        self.tab_conf_textbox = notebook.tab_project.config_path
+        self.override_path: wx.CheckBox = notebook.tab_project.override_path
+        self.splitter: wx.SplitterWindow = notebook.tab_config
+
+        self.SetMinSize((600,480))
+
+        self.logs = notebook.tab_project.logs
+        log.setup(self.logs, 10)
+
+        self.Show(True)
 
 
 
-json_config = Path(r"C:\Users\Chi\Documents\TITUS GLOBAL\Data\configs\HeHeProject.json")
-with open(json_config) as file:
-    config = json.load(file)
-    validated_config = config_schema.validate_config(config)
+    def OnOpen(self, e):
+        self.config_path = FileDialog.open_config(self)
+        if not self.config_path:
+            return
 
-import clr
-from System.IO import DirectoryInfo, FileInfo
+        self.tab_conf_textbox.write(self.config_path)
+        try:
+            self.config = pp.parse(self.config_path)
+            pp.tia, pp.comp, pp.hwf = pp.import_siemens_module(self.config.dll)
 
-DLL_PATH: Path = Path(r"C:/Program Files/Siemens/Automation/Portal V18/PublicAPI/V18/Siemens.Engineering.dll")
-clr.AddReference(DLL_PATH.as_posix())
-import Siemens.Engineering as SE
+            self.splitter.tree.populate(self.config)
 
-portal.execute(
-    SE,
-    validated_config,
-    {
-        "DirectoryInfo": DirectoryInfo,
-        "FileInfo": FileInfo,
-        "enable_ui": True,
-    }
-)
+        except IOError:
+            wx.LogError("Cannot open file '%s'." % newfile)
 
-# from pprint import pprint
-# pprint(validated_config)
+    def OnClose(self, e):
+        pp.tia = None
+        pp.comp = None
+        pp.hwf = None
+        self.config = None
 
-# from modules import xml_builder
-# from modules.config_schema import PlcType, DatabaseType
-#
-# data = {
-#
-#             "Program blocks": [
-#                 {
-#                     "type": "FB",
-#                     "name": "FunctionBlock_1",
-#                     "programming_language": "FBD"
-#                 },
-#                 {
-#                     "type": "OB",
-#                     "name": "YouKnow",
-#                     "programming_language": "FBD",
-#                     "source": {
-#                         "name": "YouKnow",
-#                         "library": "Library1"
-#                     }
-#                 },
-#                 {
-#                     "type": "FB",
-#                     "name": "Reset_Main",
-#                     "number": 2,
-#                     "programming_language": "STL",
-#                     "network_sources": [
-#                         [
-#                                 {
-#                                     "type": "FB",
-#                                     "name": "Reset_1a",
-#                                     "programming_language": "FBD"
-#                                 },
-#                                 {
-#                                     "type": "FB",
-#                                     "name": "Reset_1b",
-#                                     "programming_language": "FBD"
-#                                 },
-#                                 {
-#                                     "type": "FB",
-#                                     "name": "Reset_1c",
-#                                     "programming_language": "FBD"
-#                                 },
-#                                 {
-#                                     "type": "FB",
-#                                     "name": "Reset_1d",
-#                                     "programming_language": "FBD"
-#                                 }
-#                         ],
-#                         [
-#                                 {
-#                                     "type": "FB",
-#                                     "name": "Reset_3",
-#                                     "programming_language": "FBD"
-#                                 }
-#                         ],
-#                         [
-#                                 {
-#                                     "type": "FB",
-#                                     "name": "Reset_4",
-#                                     "programming_language": "FBD"
-#                                 }
-#                         ],
-#                         [
-#                                 {
-#                                     "type": "FB",
-#                                     "name": "Reset_5",
-#                                     "programming_language": "FBD"
-#                                 }
-#                         ]
-#                     ],
-#                     "db": {
-#                         "type": "GlobalDB",
-#                         "name": "Reset_Main_DB",
-#                         "programming_language": "DB",
-#                         "instanceOfName": "Reset_Main"
-#                     }
-#                 }
-#             ],
-# }
-#
-# schema = config_schema.Schema({
-#         config_schema.Optional("Program blocks", default=[]): config_schema.And(list, [config_schema.Or(config_schema.schema_program_block_ob,config_schema.schema_program_block_fb,config_schema.schema_program_block_fc)]),
-# })
-#
-# blocks = schema.validate(data)
-#
-# for plc_block in blocks['Program blocks']:
-#     xml_obj = xml_builder.PlcBlock(plc_block.get('type', PlcType.FB).value, plc_block.get('name'), plc_block.get('number'))
-#     xml = xml_obj.build(
-#         programming_language=plc_block.get('programming_language'),
-#         network_sources=plc_block.get('network_sources', []),
-#     )
-#     # print(xml)
-#     # print()
-#     # print()
-#
-#     db = plc_block.get('db')
-#     if db.get('type') == DatabaseType.GLOBAL:
-#         xml_obj = xml_builder.Database(
-#             db['type'].value,
-#             db['name'],
-#             db['number']
-#         )
-#         xml = xml_obj.build(db['programming_language'])
-#         print(xml)
+    def OnRun(self, e):
+        pass
+
+
+    def OnSelectConfigTree(self, e):
+        item = e.GetItem()
+        value = self.splitter.tree.GetItemData(item)
+
+        if value is not None:
+            self.splitter.value.SetValue(str(value))
+        else:
+            self.splitter.value.SetValue("")
+
+
+    def OnExit(self, e):
+        self.Close(True)
+        self.Destroy()
+    
+
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="A simple tool for automating TIA Portal projects.")
+    parser.add_argument("-c", "--config",
+                        type=Path,
+                        help="JSON config file path"
+                        )
+    parser.add_argument("--dll",
+                        type=Path,
+                        help="Siemens.Engineering.dll path",
+                        default=r"C:/Program Files/Siemens/Automation/Portal V18/PublicAPI/V18/Siemens.Engineering.dll"
+                        )
+    parser.add_argument("--debug",
+                        action="store_true",
+                        help="Set log level to DEBUG"
+                        )
+    args = parser.parse_args()
+
+    json_config = args.config
+    dll = args.dll
+    debug = args.debug
+
+    if json_config:
+        import json
+        with open(json_config) as file:
+            config = json.load(file)
+            validated_config = config_schema.validate_config(config)
+
+        import clr
+        from System.IO import DirectoryInfo, FileInfo
+
+        clr.AddReference(dll.as_posix())
+        import Siemens.Engineering as SE
+
+        print("TIA Portal Automation Tool")
+        print()
+
+        portal.execute(
+            SE,
+            validated_config,
+            {
+                "DirectoryInfo": DirectoryInfo,
+                "FileInfo": FileInfo,
+                "enable_ui": True,
+            }
+        )
+    else:
+        app = wx.App(False)
+        frame = MainWindow(None, title="TIA Portal Automation Tool")
+        app.MainLoop()
+

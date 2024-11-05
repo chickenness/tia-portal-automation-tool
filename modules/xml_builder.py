@@ -150,42 +150,6 @@ class PlcBlock(XML):
                 })
                 i += 1
 
-
-        # if 1 == 0:
-        #     uids = self.calculate_uids(calls)
-        #     i = uids[2]
-        #     count = uids[1]
-        #     uid = dict(uids[0])
-        #
-        #     for instance in calls:
-        #         db = instance['db']
-        #         for wire in db.get('wires', []):
-        #             Wire = ET.SubElement(Wires, "Wire", attrib={'UId': str(i+count)})
-        #             if wire['component'].lower() != 'opencon':
-        #                 ET.SubElement(Wire, "NameCon", attrib={
-        #                     "UId": str(uid[wire['component']]),
-        #                     "Name": wire['name']
-        #                 })
-        #             else:
-        #                 ET.SubElement(Wire, "NameCon", attrib={
-        #                     "UId": str(uid[wire['connect']]),
-        #                     "Name": wire['name']
-        #                 })
-        #
-        #             if wire['connect'].lower() == 'opencon':
-        #                 ET.SubElement(Wire, "OpenCon", attrib={
-        #                     "UId": str(i)
-        #                 })
-        #             if wire['connect'] in uid.keys() and wire['component'].lower() == 'opencon':
-        #                 ET.SubElement(Wire, "OpenCon", attrib={
-        #                     "UId": str(i)
-        #                 })
-        #             if wire['connect'] in uid.keys() and wire['component'] in uid.keys():
-        #                 ET.SubElement(Wire, "NameCon", attrib={
-        #                     "UId": str(i),
-        #                     "Name": "eno"
-        #                 })
-
         return Wires
 
     def create_flgnet(self, calls: list[dict[str, Any]]) -> ET.Element:
