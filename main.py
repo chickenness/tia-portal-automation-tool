@@ -84,6 +84,7 @@ class MainWindow(wx.Frame):
             if fileDialog.ShowModal() == wx.ID_CANCEL:
                 return
             self.json_config = fileDialog.GetPath()
+            self.textctrl_config.Clear()
             self.textctrl_config.write(self.json_config)
 
         with open(self.json_config) as file:
