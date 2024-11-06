@@ -1,211 +1,228 @@
-from lib.pp import pp
-from lib.pp.modules import log
-from gui import MenuBar, FileDialog, Notebook
 from pathlib import Path
-
+import argparse
+import json
 import wx
-import uuid
-import tempfile
+
+from modules import config_schema, portal, logger
 
 class MainWindow(wx.Frame):
     def __init__(self, parent, title) -> None:
         wx.Frame.__init__(self, parent, title=title, size=(800,600))
-        self.config: pp.objects.Config = None
-        self.config_path: str = ""
+        self.config: dict = {}
+        self.dll: str = ""
 
         self.CreateStatusBar()
 
-        menubar = MenuBar.new(self)
-        notebook = Notebook.new(self)
-        self.tab_conf_textbox = notebook.tab_project.config_path
-        self.override_path: wx.CheckBox = notebook.tab_project.override_path
-        self.splitter: wx.SplitterWindow = notebook.tab_config
+        # Menubars and menu items
+        menubar: wx.MenuBar = wx.MenuBar()
+        _filemenu = wx.Menu()
+        _open = _filemenu.Append(wx.ID_OPEN, "&Open", " Open project configuration.")
+        _close = _filemenu.Append(wx.ID_CLOSE, "&Close", " Close current configuration.")
+        _filemenu.AppendSeparator()
+        _exit = _filemenu.Append(wx.ID_EXIT, "&Exit", "Terminate this tool. (Does not close TIA Portal)")
+        _runmenu = wx.Menu()
+        _run = _runmenu.Append(wx.NewIdRef(), "&Run", " Run project.")
+        self.Bind(wx.EVT_MENU, self.OnOpen, _open)
+        self.Bind(wx.EVT_MENU, self.OnExit, _exit)
+        self.Bind(wx.EVT_MENU, self.OnClose, _close)
+        self.Bind(wx.EVT_MENU, self.OnRun, _run)
+        menubar.Append(_filemenu, "&File")
+        menubar.Append(_runmenu, "&Action")
+        self.SetMenuBar(menubar)
+
+
+        # notebook
+        notebook: wx.Notebook = wx.Notebook(self)
+        _tab_project = wx.Panel(notebook)
+        _vsizer = wx.BoxSizer(wx.VERTICAL)
+        _hsizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.textctrl_config = wx.TextCtrl(_tab_project, size=(300, -1))
+        _browse: wx.Button = wx.Button(_tab_project, label="Browse")
+        _select_dll: wx.Button = wx.Button(_tab_project, label="Select DLL")
+        _execute: wx.Button = wx.Button(_tab_project, label="Execute")
+        _hsizer.Add(self.textctrl_config, proportion=1, flag=wx.ALL|wx.EXPAND, border=5)
+        _hsizer.Add(_browse, flag=wx.ALL, border=5)
+        _hsizer.Add(_select_dll, flag=wx.ALL, border=5)
+        _hsizer.Add(_execute, flag=wx.ALL, border=5)
+        _vsizer.Add(_hsizer, flag= wx.EXPAND|wx.LEFT|wx.RIGHT|wx.TOP, border=5)
+        self.logs: wx.TextCtrl = wx.TextCtrl(_tab_project, style=wx.TE_MULTILINE)
+        # _override_path: wx.CheckBox = wx.CheckBox(_tab_project, label="Override Config Project Path")
+        # _override_path.SetValue(True)
+        # _vsizer.Add(_override_path, flag=wx.ALL|wx.EXPAND, border=5)
+        _vsizer.Add(self.logs, proportion=1, flag=wx.ALL|wx.EXPAND, border=5)
+        _tab_project.SetSizer(_vsizer)
+        self.Bind(wx.EVT_BUTTON, self.OnOpen, _browse)
+        self.Bind(wx.EVT_BUTTON, self.OnRun, _execute)
+        self.Bind(wx.EVT_BUTTON, self.OnSelectDLL, _select_dll)
+        _tab_config = wx.SplitterWindow(notebook, style=wx.SP_LIVE_UPDATE)
+        _sty = wx.BORDER_SUNKEN
+        _p1 = wx.Window(_tab_config, style=_sty)
+        _p2 = wx.Window(_tab_config, style=_sty)
+        self.tree = wx.TreeCtrl(_p1, wx.NewIdRef(), wx.DefaultPosition, wx.DefaultSize, style=wx.TR_DEFAULT_STYLE | wx.TR_FULL_ROW_HIGHLIGHT)
+        self.root_item = self.tree.AddRoot("TIA Portal")
+        self.Bind(wx.EVT_TREE_SEL_CHANGED, self.OnSelectConfigTree, self.tree)
+        self.tab_config_value: wx.TextCtrl = wx.TextCtrl(_p2, style=wx.TE_WORDWRAP|wx.TE_NO_VSCROLL|wx.TE_READONLY)
+        _p1sizer: wx.BoxSizer = wx.BoxSizer(wx.VERTICAL)
+        _p1sizer.Add(self.tree, proportion=1, flag=wx.EXPAND|wx.ALL, border=1)
+        _p1.SetSizer(_p1sizer)
+        _p2sizer: wx.BoxSizer = wx.BoxSizer(wx.VERTICAL)
+        _p2sizer.Add(self.tab_config_value, proportion=1, flag=wx.EXPAND|wx.ALL, border=1)
+        _p2.SetSizer(_p2sizer)
+        _tab_config.SetMinimumPaneSize(100)
+        _tab_config.SplitVertically(_p1, _p2, 250)
+        _tab_config.SetSashPosition(0)
+        notebook.AddPage(_tab_project, "Project")
+        notebook.AddPage(_tab_config, "Config")
+
+        logger.setup(self.logs, 10)
 
         self.SetMinSize((600,480))
-
-        self.logs = notebook.tab_project.logs
-        log.setup(self.logs, 10)
-
         self.Show(True)
 
-
-
     def OnOpen(self, e):
-        self.config_path = FileDialog.open_config(self)
-        if not self.config_path:
-            return
+        with wx.FileDialog(self, "Open TIA Portal project config", wildcard= "json (*.json)|*.json", style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST) as fileDialog:
+            if fileDialog.ShowModal() == wx.ID_CANCEL:
+                return
+            self.json_config = fileDialog.GetPath()
+            self.textctrl_config.write(self.json_config)
 
-        self.tab_conf_textbox.write(self.config_path)
-        try:
-            self.config = pp.parse(self.config_path)
-            pp.tia, pp.comp, pp.hwf = pp.import_siemens_module(self.config.dll)
+        with open(self.json_config) as file:
+            config = json.load(file)
+            self.config = config_schema.validate_config(config)
+            self.populate_config(self.config)
 
-            self.splitter.tree.populate(self.config)
+    def OnSelectDLL(self, e):
+        with wx.FileDialog(self, "Open path of Siemens.Engineering.dll", wildcard= "DLL (*.dll)|*.dll", style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST) as fileDialog:
+            if fileDialog.ShowModal() == wx.ID_CANCEL:
+                return
+            self.dll = fileDialog.GetPath()
 
-        except IOError:
-            wx.LogError("Cannot open file '%s'." % newfile)
+
 
     def OnClose(self, e):
-        pp.tia = None
-        pp.comp = None
-        pp.hwf = None
-        self.config = None
-
-    def OnRun(self, e):
-        if pp.tia == None or pp.comp == None or pp.hwf == None:
-            return
-
-        if self.override_path.IsChecked():
-
-            pp.logger.info(f"Overriding Config Project Path: {self.config_path}")
-
-            config_path: Path = Path(self.config_path)
-            self.config.project.directory = config_path.parent
-            self.config.project.name = config_path.stem
-
-        config: Config = self.config
-
-        portal = pp.TiaPortal(config)
-        project = pp.create_project(portal, config.project.name, config.project.directory, config.project.overwrite)
-
-        devices: list[Siemens.Engineering.HW.Device] = []
-        interfaces: list[Siemens.Engineering.HW.Features.NetworkInterface] = []
-        for data in config.project.devices:
-            device_composition: Siemens.Engineering.HW.DeviceComposition = project.Devices
-            device: Siemens.Engineering.HW.Device = pp.create_device(device_composition, data)
-            devices.append(device)
-            hw_object: Siemens.Engineering.HW.HardwareObject = device.DeviceItems[0]
-            for data_dev_item in data.items:
-                pp.create_and_plug_device_item(hw_object, data_dev_item, data.slots_required)
-            device_items = pp.access_device_item_from_device(device, 1).DeviceItems
-            for item in device_items:
-                network_service = pp.access_network_interface_feature(item)
-                if type(network_service) is pp.hwf.NetworkInterface:
-                    node: Siemens.Engineeering.HW.Node = network_service.Nodes[0]
-                    attributes = {"Address" : data.network_address}
-                    pp.set_object_attributes(node, **attributes)
-                    pp.logger.info(f"Added a network address: {data.network_address}")
-                    interfaces.append(network_service)
-
-            for device_item in device.DeviceItems:
-                software_container: Siemens.Engineering.HW.Features.SoftwareContainer = pp.access_software_container(device_item)
-                if not software_container:
-                    continue
-                software_base: Siemens.Engineering.HW.Software = software_container.Software
-                if not isinstance(software_base, pp.tia.SW.PlcSoftware):
-                    continue
-                tag_table = pp.create_tag_table(software_base, data.tag_table)
-                if not isinstance(tag_table, pp.tia.SW.Tags.PlcTagTable):
-                    continue
-                for tag in data.tag_table.tags:
-                    pp.create_tag(tag_table, tag)
-
-        subnet: Siemens.Engineering.HW.Subnet = None
-        io_system: Siemens.Engineering.HW.IoSystem = None
-        network: list[pp.objects.Network] = config.project.networks
-
-        for i in range(len(network)):
-            for n in range(len(interfaces)):
-                if interfaces[n].Nodes[0].GetAttribute('Address') != network[i].address:
-                    continue
-                if i == 0:
-                    subnet, io_system = pp.create_io_system(interfaces[0], network[0])
-                    continue
-                pp.connect_to_io_system(interfaces[n], subnet, io_system)
-
-        
-        # Add PLC Blocks from imported Master Copy Library
-        for library in config.project.libraries:
-            lib = pp.open_library(portal, pp.FileInfo(library.path.as_posix()), library.read_only)
-            for master_copy in library.master_copies:
-                pp.logger.info(f"Adding {master_copy.source} to {master_copy.destination}...")
-                source = pp.find_master_copy_by_name(lib, master_copy.source)
-
-                plc = pp.find_plc_by_name(project, master_copy.destination)
-                if not plc:
-                    continue
-                block = plc.BlockGroup.Blocks
-                copy = pp.create_plc_block_from_mastercopy(block, source)
-                attrs = {"Name": master_copy.name}
-                pp.set_object_attributes(copy, **attrs)
-
-                if copy:
-                    pp.logger.info(f"Copied PLC block: {copy.Name}")
-
-            for instance in library.instances:
-                networks = {}
-                for network, mastercopies in instance.networks.items():
-                    lines = []
-                    for mastercopy in mastercopies:
-                        if mastercopy.is_mastercopy:
-                            source = pp.find_master_copy_by_name(lib, mastercopy.source)
-                            plc = pp.find_plc_by_name(project, mastercopy.destination)
-                            if not plc:
-                                continue
-                            block = plc.BlockGroup.Blocks
-                            fb = pp.create_plc_block_from_mastercopy(block, source)
-                            attrs = {"Name": mastercopy.name}
-                            pp.set_object_attributes(fb, **attrs)
-                            db = pp.create_instance_db(plc, mastercopy.name, 1, mastercopy.name)
-                            data = {
-                                'fb': mastercopy.name,
-                                'db': db.Name,
-                                'type': mastercopy.block_type,
-                            }
-                            lines.append(data)
-                        else:
-                            plc = pp.find_plc_by_name(project, mastercopy.destination)
-                            if not plc:
-                                continue
-                            block = plc.BlockGroup.Blocks
-                            source = pp.find_plc_block_by_name(block, mastercopy.source)   
-                            if not source:
-                                continue
-                            db = pp.create_instance_db(plc, mastercopy.name, 1, mastercopy.name)
-                            data = {
-                                'fb': mastercopy.name,
-                                'db': db.Name,
-                                'type': mastercopy.block_type,
-                            }
-                            lines.append(data)
-                    networks[len(networks)+1] = lines
-
-                match instance.block_type:
-                    case "SW.Blocks.OB" | "OB":
-                        xml = pp.OB.generate(instance.name, instance.number, instance.programming_language, networks, instance.xml_path)
-                       
-                    case "SW.Blocks.FB" | "FB":
-                        xml = pp.FB.generate(instance.name, instance.number, instance.programming_language, networks, instance.xml_path)
-
-                    case _:
-                        xml = pp.OB.generate(instance.name, instance.number, instance.programming_language, networks, instance.xml_path)
-
-                filename = uuid.uuid4().hex
-                path = Path(tempfile.gettempdir()).joinpath(filename)
-                with open(path, 'w') as file:
-                    file.write(xml)
-                plc = pp.find_plc_by_name(project, instance.plc_block)
-                blocks = plc.BlockGroup.Blocks
-                pp.import_xml_block(blocks, pp.FileInfo(path.as_posix()))
-
-
-    def OnSelectConfigTree(self, e):
-        item = e.GetItem()
-        value = self.splitter.tree.GetItemData(item)
-
-        if value is not None:
-            self.splitter.value.SetValue(str(value))
-        else:
-            self.splitter.value.SetValue("")
+        self.config = {}
+        self.textctrl_config.Clear()
+        while self.tree.ItemHasChildren(self.root_item):
+            item = self.tree.GetFirstChild(self.root_item)[0]
+            self.tree.Delete(item)
 
 
     def OnExit(self, e):
         self.Close(True)
         self.Destroy()
+
     
+    def OnSelectConfigTree(self, e):
+        item = e.GetItem()
+        
+        value = self.tree.GetItemData(item)
+
+        if value is not None:
+            self.tab_config_value.SetValue(str(value))
+        else:
+            self.tab_config_value.SetValue("")
+
+
+    def OnRun(self, e):
+        dll = Path(self.dll) 
+        if not dll.exists() or not dll.is_file():
+            error_message = "Siemens.Engineering.dll path does not exist!"
+            dialog = wx.MessageDialog(self, error_message, "Error", wx.OK | wx.ICON_ERROR)
+            dialog.ShowModal()
+            dialog.Destroy()
+
+            return
+        import clr
+        from System.IO import DirectoryInfo, FileInfo
+
+        clr.AddReference(dll.as_posix())
+        import Siemens.Engineering as SE
+
+        print("TIA Portal Automation Tool")
+        print()
+
+        portal.execute(
+            SE,
+            self.config,
+            {
+                "DirectoryInfo": DirectoryInfo,
+                "FileInfo": FileInfo,
+                "enable_ui": True,
+            }
+        )
+
+
+    def populate_config(self, config: dict) -> None:
+        def add_children(root, children):
+            for key, value in children.items():
+                child = self.tree.AppendItem(root, str(key))
+                if isinstance(value, dict):
+                    add_children(child, value)
+                elif isinstance(value, list):
+                    add_children_as_list(child, value)
+                else:
+                    self.tree.SetItemData(child, value)
+
+        def add_children_as_list(root, children):
+            for index, value in enumerate(children):
+                child = self.tree.AppendItem(root, str(index))
+                if isinstance(value, dict):
+                    add_children(child, value)
+                elif isinstance(value, list):
+                    add_children_as_list(child, value)
+                else:
+                    self.tree.SetItemData(child, value)
+
+        add_children(self.root_item, config)
+
+        self.tree.Expand(self.root_item)
 
 if __name__ == '__main__':
-    app = wx.App(False)
-    frame = MainWindow(None, title="TIA Portal Automation Tool")
-    app.MainLoop()
+    parser = argparse.ArgumentParser(description="A simple tool for automating TIA Portal projects.")
+    parser.add_argument("-c", "--config",
+                        type=Path,
+                        help="JSON config file path"
+                        )
+    parser.add_argument("--dll",
+                        type=Path,
+                        help="Siemens.Engineering.dll path",
+                        default=r"C:/Program Files/Siemens/Automation/Portal V18/PublicAPI/V18/Siemens.Engineering.dll"
+                        )
+    parser.add_argument("--debug",
+                        action="store_true",
+                        help="Set log level to DEBUG"
+                        )
+    args = parser.parse_args()
+
+    json_config = args.config
+    dll = args.dll
+    debug = args.debug
+
+    if json_config:
+        with open(json_config) as file:
+            config = json.load(file)
+            validated_config = config_schema.validate_config(config)
+
+        import clr
+        from System.IO import DirectoryInfo, FileInfo
+
+        clr.AddReference(dll.as_posix())
+        import Siemens.Engineering as SE
+
+        print("TIA Portal Automation Tool")
+        print()
+
+        portal.execute(
+            SE,
+            validated_config,
+            {
+                "DirectoryInfo": DirectoryInfo,
+                "FileInfo": FileInfo,
+                "enable_ui": True,
+            }
+        )
+    else:
+        app = wx.App(False)
+        frame = MainWindow(None, title="TIA Portal Automation Tool")
+        app.MainLoop()
 
