@@ -90,6 +90,8 @@ class MainWindow(wx.Frame):
         with open(self.json_config) as file:
             config = json.load(file)
             self.config = config_schema.validate_config(config)
+            self.config['directory'] = Path(self.textctrl_config.Value).parent
+            self.config['name'] = Path(self.textctrl_config.Value).stem
             self.populate_config(self.config)
 
     def OnSelectDLL(self, e):

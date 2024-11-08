@@ -175,8 +175,8 @@ schema = Schema(
         # Optional("dll", default=Path(r"C:/Program Files/Siemens/Automation/Portal V18/PublicAPI/V18/Siemens.Engineering.dll")): And(str, Use(Path), lambda p: Path(p)),
         # Optional("enable_ui", default=True): bool,
         # "project": {
-        "name": str,
-        Optional("directory", default=Path.home()): And(str, Use(Path), lambda p: Path(p)),
+        # "name": str,
+        # Optional("directory", default=Path.home()): And(str, Use(Path), lambda p: Path(p)),
         Optional("overwrite", default=False): bool,
         Optional("devices", default=[]): And(list, [Or(schema_device_plc, schema_device_hmi, schema_device_ionode)]),
         Optional("networks", default=[]): And(list, [schema_network]),
