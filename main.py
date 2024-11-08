@@ -167,8 +167,15 @@ class MainWindow(wx.Frame):
                     self.tree.SetItemData(child, value)
 
         def add_children_as_list(root, children):
-            for index, value in enumerate(children):
-                child = self.tree.AppendItem(root, str(index))
+            for i,value in enumerate(children):
+                name = str(i)
+                if isinstance(value, dict):
+                    names = ['p_name', 'Name', 'name', 'address', 'path']
+                    for n in names:
+                        if value.get(n):
+                            name = str(value.get(n))
+                            break
+                child = self.tree.AppendItem(root, name)
                 if isinstance(value, dict):
                     add_children(child, value)
                 elif isinstance(value, list):
