@@ -1,23 +1,25 @@
 # TIA Portal Automation Tool
 
-## Installation
+## Building
 
-1. Clone repository:
+### Clone repository:
 
 ```
-git clone https://github.com/chickenness/tia-portal-automation-tool.git
+git clone https://github.com/TitusTech/tia-portal-automation-tool.git
 ```
 
-2. Change directory:
+### Install requirements:
 
 ```
 cd tia-portal-automation-tool
-```
-
-3. Install requirements:
-
-```
 pip install -r requirements.txt
+```
+
+### Compile (Optional)
+
+```
+pyinstaller --noconfirm --onefile --windowed --name "tia-portal-automation-tool" "main.py"
+cp -r res dist
 ```
 
 And done.
