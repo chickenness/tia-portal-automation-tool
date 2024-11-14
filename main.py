@@ -18,26 +18,16 @@ class ResultEvent(wx.PyEvent):
         self.data = data
 
 class WorkerThread(Thread):
-    def __init__(self, window, SE, config, DirectoryInfo, FileInfo):
+    def __init__(self, window, config: dict, dll: Path):
         Thread.__init__(self)
         self._window = window
-        self.SE = SE
         self.config = config
-        self.DirectoryInfo = DirectoryInfo
-        self.FileInfo = FileInfo
+        self.dll: Path = dll
 
         self.start()
 
-
     def run(self):
-        portal.execute( self.SE,
-            self.config,
-            {
-                "DirectoryInfo": self.DirectoryInfo,
-                "FileInfo": self.FileInfo,
-                "enable_ui": True,
-            }
-        )
+        import_and_execute(self.config, self.dll)
         wx.PostEvent(self._window, ResultEvent({"finished": True}))
 
 
@@ -175,17 +165,10 @@ class MainWindow(wx.Frame):
 
             return
         self.set_button_active_status(False)
-        import clr
-        from System.IO import DirectoryInfo, FileInfo
 
-        clr.AddReference(dll.as_posix())
-        import Siemens.Engineering as SE
-
-        print("TIA Portal Automation Tool")
-        print()
 
         if not self.worker:
-            self.worker = WorkerThread(self, SE, self.config, DirectoryInfo, FileInfo)
+            self.worker = WorkerThread(self, self.config, dll)
 
 
     def OnResult(self, e):
@@ -231,6 +214,25 @@ class MainWindow(wx.Frame):
 
         self.tree.Expand(self.root_item)
 
+
+def import_and_execute(config, dll: Path):
+    import clr
+    from System.IO import DirectoryInfo, FileInfo
+
+    clr.AddReference(dll.as_posix())
+    import Siemens.Engineering as SE
+
+    print("TIA Portal Automation Tool")
+    print()
+
+    portal.execute(SE, config,
+        {
+            "DirectoryInfo": DirectoryInfo,
+            "FileInfo": FileInfo,
+            "enable_ui": True,
+        }
+    )
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="A simple tool for automating TIA Portal projects.")
     parser.add_argument("-c", "--config",
@@ -257,24 +259,8 @@ if __name__ == '__main__':
             config = json.load(file)
             validated_config = config_schema.validate_config(config)
 
-        import clr
-        from System.IO import DirectoryInfo, FileInfo
+        import_and_execute(validated_config, dll)
 
-        clr.AddReference(dll.as_posix())
-        import Siemens.Engineering as SE
-
-        print("TIA Portal Automation Tool")
-        print()
-
-        portal.execute(
-            SE,
-            validated_config,
-            {
-                "DirectoryInfo": DirectoryInfo,
-                "FileInfo": FileInfo,
-                "enable_ui": True,
-            }
-        )
     else:
         app = wx.App(False)
         frame = MainWindow(None, title="TIA Portal Automation Tool")
