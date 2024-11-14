@@ -1,16 +1,15 @@
 from pathlib import Path
 from threading import Thread
 import argparse
+import base64
 import json
-import os
-import tempfile
 import wx
 
 from modules import config_schema, portal, logger
 from res import dlls
 
 
-EVT_RESULT_ID = wx.NewId()
+EVT_RESULT_ID = wx.NewIdRef()
 def EVT_RESULT(win, func):
     win.Connect(-1, -1, EVT_RESULT_ID, func)
 
@@ -32,6 +31,50 @@ class WorkerThread(Thread):
     def run(self):
         import_and_execute(self.config, self.dll)
         wx.PostEvent(self._window, ResultEvent({"finished": True}))
+
+
+class DLLPickerWindow(wx.Frame):
+    def __init__(self, parent, dll_paths: dict[str, Path], callback, title="Choose DLL version"):
+        super().__init__(parent, title=title, size=(450,100))
+        self.SetMinSize((450,100))
+        self.dll_paths: dict[str, Path] = dll_paths
+        self.callback = callback
+
+        dll_choices = [dll for dll in self.dll_paths]
+
+        panel = wx.Panel(self)
+        self.versions_drpdwn = wx.Choice(panel, choices=dll_choices)
+        self.versions_drpdwn.SetSelection(0)
+        import_btn = wx.Button(panel, label="Import")
+        ok_btn = wx.Button(panel, label="Ok")
+
+        self.versions_drpdwn.SetMinSize((200,-1))
+
+        hbox = wx.BoxSizer(wx.HORIZONTAL)
+        hbox.Add(self.versions_drpdwn, proportion=0, flag=wx.ALL|wx.ALIGN_CENTER_VERTICAL, border=10)
+        hbox.Add(import_btn, proportion=0, flag=wx.ALL|wx.ALIGN_CENTER_VERTICAL, border=10)
+        hbox.Add(ok_btn, proportion=0, flag=wx.ALL|wx.ALIGN_CENTER_VERTICAL, border=10)
+
+        panel.SetSizer(hbox)
+
+        ok_btn.Bind(wx.EVT_BUTTON, self.OnOk)
+        import_btn.Bind(wx.EVT_BUTTON, self.OnImport)
+
+        self.Show()
+
+    def OnOk(self, e):
+        if self.callback:
+            index = self.versions_drpdwn.GetCurrentSelection()
+            version = self.versions_drpdwn.GetString(self.versions_drpdwn.GetCurrentSelection() if index > 0 else 0)
+            self.callback(version)
+        self.Close()
+
+
+    def OnImport(self, e):
+        with wx.FileDialog(self, "Open path of Siemens.Engineering.dll", wildcard= "DLL (*.dll)|*.dll", style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST) as fileDialog:
+            if fileDialog.ShowModal() == wx.ID_CANCEL:
+                return
+            self.callback(fileDialog.GetPath())
 
 
 class MainWindow(wx.Frame):
@@ -111,6 +154,15 @@ class MainWindow(wx.Frame):
         self.SetMinSize((600,480))
         self.Show(True)
 
+    def set_b64_dlls(self, dll: dict[str, Path]):
+        self.b64_dlls: dict[str, Path] = dll
+
+    def receive_callback(self, version):
+        if version in self.b64_dlls:
+            self.dll = self.b64_dlls[version].as_posix()
+        else:
+            self.dll = version
+
     def OnOpen(self, e):
         with wx.FileDialog(self, "Open TIA Portal project config", wildcard= "json (*.json)|*.json", style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST) as fileDialog:
             if fileDialog.ShowModal() == wx.ID_CANCEL:
@@ -127,11 +179,7 @@ class MainWindow(wx.Frame):
             self.populate_config(self.config)
 
     def OnSelectDLL(self, e):
-        with wx.FileDialog(self, "Open path of Siemens.Engineering.dll", wildcard= "DLL (*.dll)|*.dll", style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST) as fileDialog:
-            if fileDialog.ShowModal() == wx.ID_CANCEL:
-                return
-            self.dll = fileDialog.GetPath()
-
+        dll_picker = DLLPickerWindow(self, dll_paths=self.b64_dlls, callback=self.receive_callback)
 
 
     def OnClose(self, e):
@@ -237,10 +285,30 @@ def import_and_execute(config, dll: Path):
     )
 
 if __name__ == '__main__':
+    dll_paths: dict[str, Path] = {}
+    for key in dlls.b64_dlls:
+        if key == "Siemens.Engineering.Contract":
+            continue
+        if "Hmi" in key:
+            continue
+        data = base64.b64decode(dlls.b64_dlls[key])
+        hmi_data = base64.b64decode(dlls.b64_dlls[f"{key}.Hmi"])
+        dlls_dir = Path("./DLLs")
+        dlls_dir.mkdir(exist_ok=True)
 
-    # do something here to decode the base64 dlls
+        save_path = Path(dlls_dir) / key
+        save_path.mkdir(exist_ok=True)
+        version_dll_path = save_path / f"Siemens.Engineering.dll"
+        with version_dll_path.open('wb') as version_dll_file:
+            version_dll_file.write(data)
+            logger.logging.debug(f"Written data of {key}")
 
-
+        version_hmi_dll_path = save_path / f"Siemens.Engineering.Hmi.dll"
+        with version_hmi_dll_path.open('wb') as version_hmi_dll_file:
+            version_hmi_dll_file.write(hmi_data)
+            logger.logging.debug(f"Written data of {key}")
+        dll_paths[key] = version_dll_path.absolute()
+    logger.logging.debug(f"DLL Paths: {dll_paths}")
 
     parser = argparse.ArgumentParser(description="A simple tool for automating TIA Portal projects.")
     parser.add_argument("-c", "--config",
@@ -272,5 +340,5 @@ if __name__ == '__main__':
     else:
         app = wx.App(False)
         frame = MainWindow(None, title="TIA Portal Automation Tool")
+        frame.set_b64_dlls(dll_paths)
         app.MainLoop()
-
