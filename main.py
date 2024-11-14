@@ -1,13 +1,42 @@
 from pathlib import Path
+from threading import Thread
 import argparse
 import json
 import wx
 
 from modules import config_schema, portal, logger
 
+
+EVT_RESULT_ID = wx.NewId()
+def EVT_RESULT(win, func):
+    win.Connect(-1, -1, EVT_RESULT_ID, func)
+
+class ResultEvent(wx.PyEvent):
+    def __init__(self, data):
+        wx.PyEvent.__init__(self)
+        self.SetEventType(EVT_RESULT_ID)
+        self.data = data
+
+class WorkerThread(Thread):
+    def __init__(self, window, config: dict, dll: Path):
+        Thread.__init__(self)
+        self._window = window
+        self.config = config
+        self.dll: Path = dll
+
+        self.start()
+
+    def run(self):
+        import_and_execute(self.config, self.dll)
+        wx.PostEvent(self._window, ResultEvent({"finished": True}))
+
+
 class MainWindow(wx.Frame):
     def __init__(self, parent, title) -> None:
         wx.Frame.__init__(self, parent, title=title, size=(800,600))
+        self.worker: WorkerThread | None = None
+        EVT_RESULT(self,self.OnResult)
+
         self.config: dict = {}
         self.dll: str = ""
 
@@ -37,13 +66,13 @@ class MainWindow(wx.Frame):
         _vsizer = wx.BoxSizer(wx.VERTICAL)
         _hsizer = wx.BoxSizer(wx.HORIZONTAL)
         self.textctrl_config = wx.TextCtrl(_tab_project, size=(300, -1))
-        _browse: wx.Button = wx.Button(_tab_project, label="Browse")
-        _select_dll: wx.Button = wx.Button(_tab_project, label="Select DLL")
-        _execute: wx.Button = wx.Button(_tab_project, label="Execute")
+        self.browse_btn: wx.Button = wx.Button(_tab_project, label="Browse")
+        self.select_dll_btn: wx.Button = wx.Button(_tab_project, label="Select DLL")
+        self.execute_btn: wx.Button = wx.Button(_tab_project, label="Execute")
         _hsizer.Add(self.textctrl_config, proportion=1, flag=wx.ALL|wx.EXPAND, border=5)
-        _hsizer.Add(_browse, flag=wx.ALL, border=5)
-        _hsizer.Add(_select_dll, flag=wx.ALL, border=5)
-        _hsizer.Add(_execute, flag=wx.ALL, border=5)
+        _hsizer.Add(self.browse_btn, flag=wx.ALL, border=5)
+        _hsizer.Add(self.select_dll_btn, flag=wx.ALL, border=5)
+        _hsizer.Add(self.execute_btn, flag=wx.ALL, border=5)
         _vsizer.Add(_hsizer, flag= wx.EXPAND|wx.LEFT|wx.RIGHT|wx.TOP, border=5)
         self.logs: wx.TextCtrl = wx.TextCtrl(_tab_project, style=wx.TE_MULTILINE)
         # _override_path: wx.CheckBox = wx.CheckBox(_tab_project, label="Override Config Project Path")
@@ -51,9 +80,9 @@ class MainWindow(wx.Frame):
         # _vsizer.Add(_override_path, flag=wx.ALL|wx.EXPAND, border=5)
         _vsizer.Add(self.logs, proportion=1, flag=wx.ALL|wx.EXPAND, border=5)
         _tab_project.SetSizer(_vsizer)
-        self.Bind(wx.EVT_BUTTON, self.OnOpen, _browse)
-        self.Bind(wx.EVT_BUTTON, self.OnRun, _execute)
-        self.Bind(wx.EVT_BUTTON, self.OnSelectDLL, _select_dll)
+        self.Bind(wx.EVT_BUTTON, self.OnOpen, self.browse_btn)
+        self.Bind(wx.EVT_BUTTON, self.OnRun, self.execute_btn)
+        self.Bind(wx.EVT_BUTTON, self.OnSelectDLL, self.select_dll_btn)
         _tab_config = wx.SplitterWindow(notebook, style=wx.SP_LIVE_UPDATE)
         _sty = wx.BORDER_SUNKEN
         _p1 = wx.Window(_tab_config, style=_sty)
@@ -135,25 +164,23 @@ class MainWindow(wx.Frame):
             dialog.Destroy()
 
             return
-        import clr
-        from System.IO import DirectoryInfo, FileInfo
+        self.set_button_active_status(False)
 
-        clr.AddReference(dll.as_posix())
-        import Siemens.Engineering as SE
 
-        print("TIA Portal Automation Tool")
-        print()
+        if not self.worker:
+            self.worker = WorkerThread(self, self.config, dll)
 
-        portal.execute(
-            SE,
-            self.config,
-            {
-                "DirectoryInfo": DirectoryInfo,
-                "FileInfo": FileInfo,
-                "enable_ui": True,
-            }
-        )
 
+    def OnResult(self, e):
+        if e.data.get('finished', False) == True:
+            self.worker = None
+        self.set_button_active_status()
+
+
+    def set_button_active_status(self, enable: bool = True):
+        self.execute_btn.Enable(enable)
+        self.browse_btn.Enable(enable)
+        self.select_dll_btn.Enable(enable)
 
     def populate_config(self, config: dict) -> None:
         def add_children(root, children):
@@ -187,6 +214,25 @@ class MainWindow(wx.Frame):
 
         self.tree.Expand(self.root_item)
 
+
+def import_and_execute(config, dll: Path):
+    import clr
+    from System.IO import DirectoryInfo, FileInfo
+
+    clr.AddReference(dll.as_posix())
+    import Siemens.Engineering as SE
+
+    print("TIA Portal Automation Tool")
+    print()
+
+    portal.execute(SE, config,
+        {
+            "DirectoryInfo": DirectoryInfo,
+            "FileInfo": FileInfo,
+            "enable_ui": True,
+        }
+    )
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="A simple tool for automating TIA Portal projects.")
     parser.add_argument("-c", "--config",
@@ -213,24 +259,8 @@ if __name__ == '__main__':
             config = json.load(file)
             validated_config = config_schema.validate_config(config)
 
-        import clr
-        from System.IO import DirectoryInfo, FileInfo
+        import_and_execute(validated_config, dll)
 
-        clr.AddReference(dll.as_posix())
-        import Siemens.Engineering as SE
-
-        print("TIA Portal Automation Tool")
-        print()
-
-        portal.execute(
-            SE,
-            validated_config,
-            {
-                "DirectoryInfo": DirectoryInfo,
-                "FileInfo": FileInfo,
-                "enable_ui": True,
-            }
-        )
     else:
         app = wx.App(False)
         frame = MainWindow(None, title="TIA Portal Automation Tool")
