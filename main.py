@@ -2,9 +2,12 @@ from pathlib import Path
 from threading import Thread
 import argparse
 import json
+import os
+import tempfile
 import wx
 
 from modules import config_schema, portal, logger
+from res import dlls
 
 
 EVT_RESULT_ID = wx.NewId()
@@ -234,6 +237,11 @@ def import_and_execute(config, dll: Path):
     )
 
 if __name__ == '__main__':
+
+    # do something here to decode the base64 dlls
+
+
+
     parser = argparse.ArgumentParser(description="A simple tool for automating TIA Portal projects.")
     parser.add_argument("-c", "--config",
                         type=Path,
